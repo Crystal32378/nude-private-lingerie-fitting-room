@@ -112,8 +112,6 @@ function TryOnFlow({ productId }: { productId: string }) {
 
       setTryOnLoading();
       try {
-        // Frontend-only build: the /api/tryon backend is not included.
-        // The request fails gracefully and we render the side-by-side fallback.
         const personBlob = await (await fetch(person)).blob();
         const garmentBlob = await (
           await fetch(product.vtoImage, { mode: "cors" })
