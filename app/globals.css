@@ -1,0 +1,193 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.125rem;
+  --background: #faf6f1;
+  --foreground: #1d1713;
+  --card: #fdfbf9;
+  --card-foreground: #1d1713;
+  --popover: #fdfbf9;
+  --popover-foreground: #1d1713;
+  --primary: #201915;
+  --primary-foreground: #f8f4ef;
+  --secondary: #f1eae3;
+  --secondary-foreground: #27201c;
+  --muted: #f1eae3;
+  --muted-foreground: #69625b;
+  --accent: #d4bca7;
+  --accent-foreground: #201915;
+  --accent-deep: #bd9e86;
+  --destructive: #bd413f;
+  --border: #e2ddd7;
+  --input: #e2ddd7;
+  --ring: #d4bca7;
+}
+
+.dark {
+  --background: #16100d;
+  --foreground: #f2eee9;
+  --card: #201915;
+  --card-foreground: #f2eee9;
+  --popover: #201915;
+  --popover-foreground: #f2eee9;
+  --primary: #f2eee9;
+  --primary-foreground: #201915;
+  --secondary: #2f2723;
+  --secondary-foreground: #f2eee9;
+  --muted: #2f2723;
+  --muted-foreground: #aaa39d;
+  --accent: #bd9e86;
+  --accent-foreground: #f2eee9;
+  --accent-deep: #ac866c;
+  --destructive: #e85854;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #bd9e86;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-deep: var(--accent-deep);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 4px);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-feature-settings: "ss01";
+}
+
+::selection {
+  background: var(--accent);
+}
+
+/* FLEUR-style type system: one geometric sans, wide tracking, weight 400 */
+
+.font-display {
+  font-family: var(--font-jost), "Jost", "Century Gothic", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.font-body {
+  font-family: var(--font-jost), "Jost", system-ui, sans-serif;
+}
+
+.label-editorial {
+  font-family: var(--font-jost), "Jost", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.label-editorial-lg {
+  font-family: var(--font-jost), "Jost", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.32em;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.product-name {
+  font-family: var(--font-jost), "Jost", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.section-title {
+  font-family: var(--font-jost), "Jost", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.26em;
+  font-size: 1.25rem;
+  font-weight: 400;
+}
+
+@keyframes scanlineMove {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.scanline {
+  background-image: linear-gradient(90deg, transparent 0%, var(--accent) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: 1.8s linear infinite scanlineMove;
+}
+
+@keyframes viewEnter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.view-enter {
+  animation: 0.55s cubic-bezier(0.16, 1, 0.3, 1) both viewEnter;
+}
+
+@keyframes imgFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.img-fade-in {
+  animation: 0.9s cubic-bezier(0.16, 1, 0.3, 1) both imgFade;
+}
+
+.grain::before {
+  content: "";
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  position: absolute;
+  inset: 0;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
