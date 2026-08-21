@@ -258,8 +258,9 @@ function UploadStep({
           Upload a photo to try on
         </h2>
         <p className="mx-auto mt-6 max-w-lg text-[15px] leading-[1.9] tracking-[0.02em] text-muted-foreground">
-          A clear, front-facing upper-body photo works best. Your image stays on this device —
-          it is not uploaded to NUDE or shared.
+          A clear, front-facing upper-body photo works best. Your photo is stored only in
+          this browser — it is sent solely to power your virtual fitting, and NUDE never
+          keeps a copy.
         </p>
       </div>
 
@@ -310,9 +311,11 @@ function UploadStep({
         </div>
 
         <p className="mt-8 text-center text-[11px] leading-relaxed text-muted-foreground">
-          By uploading, you confirm you have the right to use this photo. Your image is
-          processed via YouCam V3 on the server and stored only in your browser&apos;s local
-          IndexedDB.
+          By uploading, you confirm you have the right to use this photo. Your photo is
+          kept only in this browser (IndexedDB). When you generate a try-on, it is sent to
+          Perfect Corp&apos;s YouCam VTO API purely to render the result — NUDE&apos;s
+          servers process the request in memory and never persist your photo. Finished
+          looks are saved back to this device only.
         </p>
 
         <div className="mt-10 text-center">

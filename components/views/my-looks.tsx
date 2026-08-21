@@ -56,8 +56,9 @@ export function MyLooksView() {
             <p className="label-editorial text-accent-deep">Saved On This Device</p>
             <h1 className="font-display mt-3 text-[1.625rem] font-normal sm:text-[2rem]">My Looks</h1>
             <p className="mt-5 max-w-lg text-[15px] leading-[1.9] tracking-[0.02em] text-muted-foreground">
-              Virtual try-on results you&apos;ve kept. They live in your browser&apos;s local
-              storage — nothing is uploaded or shared.
+              Virtual try-on results you&apos;ve kept. They live only in this browser&apos;s
+              local storage — your photo is sent to the YouCam try-on service solely to
+              generate each fitting, and NUDE never stores it.
             </p>
           </div>
           {(looks.length > 0 || personImage) && (

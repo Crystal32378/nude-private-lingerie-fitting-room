@@ -5,6 +5,36 @@ export const maxDuration = 120;
 
 const API_BASE = "https://yce-api-01.makeupar.com/s2s/v2.0";
 
+const RATE_LIMIT_WINDOW_MS = 5 * 60_000;
+const RATE_LIMIT_MAX = 10;
+const MAX_BODY_BYTES = 10 * 1024 * 1024;
+const MAX_FILE_BYTES = 6 * 1024 * 1024;
+const CATEGORY_PATTERN = /^[a-z0-9_-]{1,32}$/;
+
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function clientIp(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]!.trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+
+function allowRequest(ip: string): boolean {
+  const now = Date.now();
+  if (rateBuckets.size > 5_000) {
+    for (const [key, entry] of rateBuckets) {
+      if (entry.resetAt < now) rateBuckets.delete(key);
+    }
+  }
+  const entry = rateBuckets.get(ip);
+  if (!entry || entry.resetAt < now) {
+    rateBuckets.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  entry.count += 1;
+  return entry.count <= RATE_LIMIT_MAX;
+}
+
 interface FileApiEntry {
   content_type: string;
   file_name: string;
@@ -81,6 +111,23 @@ function mapTaskError(error: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Fail closed: every guard below rejects unless explicitly allowed.
+  const ip = clientIp(req);
+  if (!allowRequest(ip)) {
+    return NextResponse.json(
+      { ok: false, youcamError: "Too many try-on requests. Please wait a few minutes." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(RATE_LIMIT_WINDOW_MS / 1000)) } }
+    );
+  }
+
+  const contentLength = Number(req.headers.get("content-length") ?? "0");
+  if (contentLength > MAX_BODY_BYTES) {
+    return NextResponse.json(
+      { ok: false, youcamError: "Request too large." },
+      { status: 413 }
+    );
+  }
+
   const apiKey = process.env.YOUCAM_API_KEY;
 
   let form: FormData;
@@ -92,12 +139,26 @@ export async function POST(req: NextRequest) {
 
   const person = form.get("person");
   const garment = form.get("garment");
-  const garmentCategory = (form.get("garmentCategory") as string) || "upper_body";
+  const garmentCategory = ((form.get("garmentCategory") as string) || "upper_body").trim();
   const garmentName = ((form.get("garmentName") as string) || "garment").slice(0, 64);
 
   if (!(person instanceof File) || !(garment instanceof File)) {
     return NextResponse.json(
       { ok: false, youcamError: "Missing person or garment image" },
+      { status: 400 }
+    );
+  }
+
+  if (person.size > MAX_FILE_BYTES || garment.size > MAX_FILE_BYTES) {
+    return NextResponse.json(
+      { ok: false, youcamError: "Image is too large (max 6 MB per file)." },
+      { status: 413 }
+    );
+  }
+
+  if (!CATEGORY_PATTERN.test(garmentCategory)) {
+    return NextResponse.json(
+      { ok: false, youcamError: "Invalid garment category" },
       { status: 400 }
     );
   }

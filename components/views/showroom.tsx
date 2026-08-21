@@ -64,7 +64,8 @@ export function ShowroomView() {
               when you wish, see one on you.
             </p>
             <p className="label-editorial mt-12 text-muted-foreground">
-              Virtual Try-On is optional — your photo never leaves this device.
+              Virtual Try-On is optional — your photo is used solely to render your fitting,
+              and NUDE never stores it.
             </p>
           </motion.div>
         </section>
