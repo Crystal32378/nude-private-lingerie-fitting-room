@@ -6,10 +6,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
 import { getProductById, type Product } from "@/lib/products";
 import {
-  SHARE_MESSAGE,
+  buildShareMessage,
   composeCompareCard,
   downloadBlob,
   shareCompareCard,
+  slotList,
 } from "@/lib/share-card";
 import { COMPARE_MIN, useShowroomStore } from "@/lib/store";
 import type { SavedLook } from "@/lib/storage";
@@ -136,11 +137,16 @@ export function CompareView() {
   const handleShare = async () => {
     if (card.status !== "ready") return;
     try {
-      const outcome = await shareCompareCard(card.blob);
-      if (outcome === "shared") {
+      const message = buildShareMessage(selected.length);
+      const result = await shareCompareCard(card.blob, message);
+      if (result.outcome === "shared") {
         flashNote("Sent — the conversation continues in your chat.");
-      } else if (outcome === "downloaded") {
-        flashNote("Card downloaded and message copied — paste both into your chat.");
+      } else if (result.outcome === "downloaded") {
+        flashNote(
+          result.messageCopied
+            ? "Card downloaded and message copied — paste both into your chat."
+            : `Card downloaded, but the message couldn't be copied on this browser — paste the card into your chat and ask your friend to reply ${slotList(selected.length)}.`
+        );
       }
     } catch {
       flashNote("Sharing didn't go through here — try downloading the card instead.");
@@ -155,7 +161,7 @@ export function CompareView() {
 
   const handleCopyMessage = async () => {
     try {
-      await navigator.clipboard.writeText(SHARE_MESSAGE);
+      await navigator.clipboard.writeText(buildShareMessage(selected.length));
       flashNote("Message copied to clipboard.");
     } catch {
       flashNote("Couldn't reach the clipboard on this browser.");

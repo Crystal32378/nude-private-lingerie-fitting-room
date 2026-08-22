@@ -26,6 +26,16 @@ export interface ShareLook {
 
 export type ShareOutcome = "shared" | "downloaded" | "cancelled" | "failed";
 
+export interface ShareResult {
+  outcome: ShareOutcome;
+  /**
+   * Whether the message text actually reached the clipboard. True when the
+   * native share sheet carried it; on the download fallback it reflects the
+   * real copy attempt so the UI never claims a copy that didn't happen.
+   */
+  messageCopied: boolean;
+}
+
 const CARD_W = 1080;
 const PAD_X = 64;
 const GAP = 24;
@@ -36,9 +46,17 @@ const CREAM = "#faf6f1";
 const RULE = "#d4bca7";
 const ACCENT_DEEP = "#bd9e86";
 
-/** The message sent alongside the card. Friend replies A/B/C in chat. */
-export const SHARE_MESSAGE =
-  "Help me choose between these — which one suits me best? Reply A, B or C.";
+/** Slot letters shown to the friend, e.g. "A or B" (2 looks) / "A, B or C" (3 looks). */
+export function slotList(count: number): string {
+  const letters = ["A", "B", "C"].slice(0, Math.max(2, Math.min(3, count)));
+  if (letters.length === 2) return `${letters[0]} or ${letters[1]}`;
+  return `${letters[0]}, ${letters[1]} or ${letters[2]}`;
+}
+
+/** The message sent alongside the card. Friend replies with the slot letters in chat. */
+export function buildShareMessage(count: number): string {
+  return `Help me choose between these — which one suits me best? Reply ${slotList(count)}.`;
+}
 
 function displayFont(): string {
   let jost = "";
@@ -198,7 +216,7 @@ export async function composeCompareCard(looks: ShareLook[]): Promise<Blob> {
   y += titleH + 16 + subH;
   drawTracked(
     ctx,
-    "Same photo, different pieces — reply A, B or C.",
+    `Same photo, different pieces — reply ${slotList(looks.length)}.`,
     CARD_W / 2,
     y,
     { size: 21, tracking: 2, color: MUTED }
@@ -316,9 +334,13 @@ export function downloadBlob(blob: Blob, filename: string): void {
  * Hand the finished card to the OS share sheet (image + message together).
  * Call from a user gesture with an already-composed blob so transient
  * activation doesn't expire. Fallback without Web Share (mostly desktop):
- * download the card and put the message on the clipboard.
+ * download the card and put the message on the clipboard — reporting
+ * honestly whether that copy succeeded.
  */
-export async function shareCompareCard(blob: Blob): Promise<ShareOutcome> {
+export async function shareCompareCard(
+  blob: Blob,
+  message: string
+): Promise<ShareResult> {
   if (typeof navigator.share === "function") {
     const file = new File([blob], "nude-compare.jpg", { type: "image/jpeg" });
     const withFiles =
@@ -326,19 +348,19 @@ export async function shareCompareCard(blob: Blob): Promise<ShareOutcome> {
       navigator.canShare({ files: [file] });
     try {
       if (withFiles) {
-        await navigator.share({ files: [file], text: SHARE_MESSAGE });
+        await navigator.share({ files: [file], text: message });
       } else {
-        await navigator.share({ text: SHARE_MESSAGE });
+        await navigator.share({ text: message });
       }
-      return "shared";
+      return { outcome: "shared", messageCopied: true };
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        return "cancelled";
+        return { outcome: "cancelled", messageCopied: false };
       }
       // Real failure — fall through to download path.
     }
   }
   downloadBlob(blob, "nude-compare.jpg");
-  await copyText(SHARE_MESSAGE);
-  return "downloaded";
+  const copied = await copyText(message);
+  return { outcome: "downloaded", messageCopied: copied };
 }
