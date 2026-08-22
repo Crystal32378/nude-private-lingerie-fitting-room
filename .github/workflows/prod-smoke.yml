@@ -1,0 +1,78 @@
+name: One-off production smoke
+
+on:
+  push:
+    branches:
+      - ops/prod-smoke
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Wait for production to serve the sponsor-credit patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://nude-virtual-showroom.vercel.app"
+          found=0
+          for attempt in $(seq 1 24); do
+            if curl -fsS "$BASE/" -o /tmp/home.html; then
+              mapfile -t chunks < <(grep -oE 'src="[^"]+\.js[^"]*"' /tmp/home.html | sed -E 's/^src="([^"]+)"$/\1/' | sort -u)
+              for chunk in "${chunks[@]:-}"; do
+                if [[ "$chunk" == http* ]]; then
+                  url="$chunk"
+                else
+                  url="$BASE$chunk"
+                fi
+                if curl -fsS "$url" | grep -Fq 'Powered by Perfect Corp YouCam'; then
+                  found=1
+                  break
+                fi
+              done
+            fi
+            if [[ "$found" == "1" ]]; then
+              echo "Production bundle contains the new Perfect Corp credit."
+              break
+            fi
+            echo "Production has not picked up the patch yet (attempt $attempt/24)."
+            sleep 15
+          done
+          test "$found" = "1"
+
+      - name: Run one real cloth-v4 production request
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://nude-virtual-showroom.vercel.app"
+          curl -fsSL 'https://raw.githubusercontent.com/Crystal32378/talk-me-out/dorahacks/launch/public/demo/fallback-person.jpg' -o /tmp/person.jpg
+          curl -fsSL 'https://img.shoplineapp.com/media/image_clips/5b45bcdd9a76f019bb00103e/original.jpg?1531296988' -o /tmp/garment.jpg
+
+          http_code=$(curl -sS --max-time 170 \
+            -o /tmp/response.json \
+            -w '%{http_code}' \
+            -F 'person=@/tmp/person.jpg;type=image/jpeg' \
+            -F 'garment=@/tmp/garment.jpg;type=image/jpeg' \
+            -F 'garmentCategory=upper_body' \
+            -F 'garmentName=prod-smoke' \
+            "$BASE/api/tryon")
+
+          echo "HTTP $http_code"
+          python3 - <<'PY'
+          import json
+          with open('/tmp/response.json', 'r', encoding='utf-8') as f:
+              payload = json.load(f)
+          image_url = payload.get('imageUrl') or ''
+          summary = {
+              'ok': payload.get('ok'),
+              'fallback': payload.get('fallback'),
+              'demo': payload.get('demo'),
+              'youcamError': payload.get('youcamError'),
+              'imageUrlKind': 'data' if image_url.startswith('data:image/') else ('https' if image_url.startswith('http') else 'missing'),
+          }
+          print(json.dumps(summary, ensure_ascii=False))
+          if payload.get('ok') is not True:
+              raise SystemExit('Production VTO did not return ok=true')
+          if not (image_url.startswith('data:image/') or image_url.startswith('http')):
+              raise SystemExit('Production VTO returned no usable imageUrl')
+          PY
