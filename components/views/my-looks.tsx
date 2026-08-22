@@ -1,12 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { Logo } from "@/components/logo";
 import { getProductById } from "@/lib/products";
-import { useShowroomStore } from "@/lib/store";
+import { COMPARE_MAX, COMPARE_MIN, useShowroomStore } from "@/lib/store";
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
@@ -28,6 +28,10 @@ export function MyLooksView() {
   const personImage = useShowroomStore((s) => s.personImage);
   const personSavedAt = useShowroomStore((s) => s.personSavedAt);
   const clearLocalData = useShowroomStore((s) => s.clearLocalData);
+  const compareIds = useShowroomStore((s) => s.compareIds);
+  const toggleCompare = useShowroomStore((s) => s.toggleCompare);
+  const clearCompare = useShowroomStore((s) => s.clearCompare);
+  const enterCompare = useShowroomStore((s) => s.enterCompare);
 
   const [lightboxId, setLightboxId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -92,6 +96,7 @@ export function MyLooksView() {
           <div className="mt-12 grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
             {looks.map((look) => {
               const product = getProductById(look.productId);
+              const selectedForCompare = compareIds.includes(look.id);
               return (
                 <motion.article
                   key={look.id}
@@ -101,7 +106,11 @@ export function MyLooksView() {
                   onClick={() => setLightboxId(look.id)}
                   className="group cursor-pointer"
                 >
-                  <div className="relative aspect-[3/4] overflow-hidden rounded-sm bg-secondary/50">
+                  <div
+                    className={`relative aspect-[3/4] overflow-hidden rounded-sm bg-secondary/50 ${
+                      selectedForCompare ? "outline outline-2 outline-offset-4 outline-accent-deep" : ""
+                    }`}
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={look.imageUrl}
@@ -111,6 +120,11 @@ export function MyLooksView() {
                     <span className="label-editorial absolute left-4 top-4 rounded-sm bg-background/85 px-2.5 py-1 backdrop-blur-sm">
                       {look.tryOnIsReal ? "VTO" : "Preview"}
                     </span>
+                    {look.friendPick && (
+                      <span className="label-editorial absolute bottom-4 left-4 rounded-sm bg-accent px-2.5 py-1 text-accent-foreground">
+                        Friend&apos;s Pick
+                      </span>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -131,16 +145,33 @@ export function MyLooksView() {
                         {formatDate(look.updatedAt)}
                       </p>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (product) openProduct(product.id);
-                      }}
-                      className="label-editorial mt-1 inline-flex shrink-0 items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      View Product
-                      <ArrowRight size={12} strokeWidth={1.5} />
-                    </button>
+                    <div className="mt-1 flex shrink-0 items-center gap-5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleCompare(look.id);
+                        }}
+                        aria-pressed={selectedForCompare}
+                        className={`label-editorial inline-flex items-center gap-1.5 transition-colors ${
+                          selectedForCompare
+                            ? "text-foreground"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {selectedForCompare && <Check size={12} strokeWidth={1.5} />}
+                        {selectedForCompare ? "Selected" : "Compare"}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (product) openProduct(product.id);
+                        }}
+                        className="label-editorial inline-flex shrink-0 items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        View Product
+                        <ArrowRight size={12} strokeWidth={1.5} />
+                      </button>
+                    </div>
                   </div>
                 </motion.article>
               );
@@ -229,6 +260,39 @@ export function MyLooksView() {
                 </button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {compareIds.length > 0 && (
+          <motion.div
+            initial={{ y: 90, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 90, opacity: 0 }}
+            transition={{ duration: 0.35, ease: EASE }}
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-5 pb-6"
+          >
+            <div className="pointer-events-auto flex items-center gap-7 rounded-sm border border-border bg-card/95 py-4 pl-7 pr-4 shadow-xl backdrop-blur-md">
+              <span className="label-editorial text-muted-foreground">
+                {compareIds.length} selected · pick {COMPARE_MIN}–{COMPARE_MAX}
+              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={clearCompare}
+                  className="label-editorial rounded-sm px-5 py-3 text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={enterCompare}
+                  disabled={compareIds.length < COMPARE_MIN}
+                  className="label-editorial rounded-sm bg-foreground px-8 py-3.5 text-background transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Compare{compareIds.length >= COMPARE_MIN ? "" : ` (${COMPARE_MIN} needed)`}
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

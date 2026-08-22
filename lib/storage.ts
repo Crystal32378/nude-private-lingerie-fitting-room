@@ -13,6 +13,8 @@ export interface SavedLook {
   tryOnIsReal: boolean;
   createdAt: string;
   updatedAt: string;
+  /** ISO timestamp recorded when the user transcribed a friend's pick for this look. */
+  friendPick?: string | null;
 }
 
 const DB_NAME = "nude-virtual-showroom";
@@ -115,6 +117,16 @@ export async function saveLook(look: SavedLook): Promise<void> {
   if (!db) return;
   try {
     await runRequest(db, LOOKS_STORE, "readwrite", (store) => store.put(look));
+  } finally {
+    db.close();
+  }
+}
+
+export async function saveLooks(looks: SavedLook[]): Promise<void> {
+  const db = await openDb();
+  if (!db) return;
+  try {
+    await Promise.all(looks.map((look) => runRequest(db, LOOKS_STORE, "readwrite", (store) => store.put(look))));
   } finally {
     db.close();
   }
