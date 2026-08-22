@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - ops/prod-smoke
+  pull_request:
+    branches:
+      - main
 
 jobs:
   smoke:
