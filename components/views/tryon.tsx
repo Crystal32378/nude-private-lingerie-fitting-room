@@ -365,7 +365,7 @@ function LoadingStep({ productId }: { productId: string }) {
         </div>
         <p className="label-editorial mt-6 text-center">Generating virtual try-on</p>
         <p className="mt-3 text-center text-[13px] leading-[1.9] tracking-[0.02em] text-muted-foreground">
-          YouCam V3 is rendering the garment onto your photo. This usually takes 10–30 seconds.
+          Perfect Corp YouCam Virtual Try-On is rendering the garment onto your photo. This usually takes 10–30 seconds.
         </p>
         <p className="label-editorial mt-5 text-center text-muted-foreground tabular-nums">
           {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
@@ -392,7 +392,7 @@ function ErrorStep({
           Try-on couldn&apos;t complete
         </h2>
         <p className="mt-4 text-[13px] leading-[1.9] tracking-[0.02em] text-muted-foreground">
-          {message ? `Error: ${message}` : "Something went wrong while contacting YouCam V3."}
+          {message ? `Error: ${message}` : "Something went wrong while contacting Perfect Corp YouCam."}
         </p>
         <div className="mt-10 flex items-center justify-center gap-4">
           <button
@@ -452,6 +452,11 @@ function ResultStep({
               Side-by-side Preview · VTO unavailable
             </span>
           )}
+          {status === "success" && (
+            <p className="label-editorial mt-3 text-[10px] text-muted-foreground">
+              Powered by Perfect Corp YouCam
+            </p>
+          )}
           <h2 className="font-display mt-4 text-xl font-normal sm:text-2xl">{product.nameEn}</h2>
           <p className="mt-2 text-[15px] tracking-[0.05em] text-muted-foreground">{product.nameZh}</p>
         </div>
@@ -465,7 +470,7 @@ function ResultStep({
 
       {status === "fallback" && (
         <p className="mb-8 max-w-xl rounded-sm border border-border/70 bg-secondary/40 p-4 text-xs leading-[1.9] tracking-[0.02em] text-muted-foreground">
-          Real Virtual Try-On requires a YouCam V3 API key. This preview shows your photo
+          Real Virtual Try-On requires Perfect Corp YouCam to be configured. This preview shows your photo
           alongside the garment for reference.
         </p>
       )}
