@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { CompareView } from "@/components/views/compare";
 import { MyLooksView } from "@/components/views/my-looks";
 import { ProductDetailView } from "@/components/views/product-detail";
 import { ShowroomView } from "@/components/views/showroom";
@@ -39,6 +40,8 @@ export default function Home() {
       return <TryOnView />;
     case "my-looks":
       return <MyLooksView />;
+    case "compare":
+      return <CompareView />;
     default:
       return <ShowroomView />;
   }

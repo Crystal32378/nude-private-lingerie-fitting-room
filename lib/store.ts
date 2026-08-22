@@ -11,10 +11,15 @@ import {
   loadAllLooks,
   loadPersonPhoto,
   saveLook as dbSaveLook,
+  saveLooks as dbSaveLooks,
   savePersonPhoto,
 } from "./storage";
 
-export type View = "showroom" | "product" | "tryon" | "my-looks";
+export type View = "showroom" | "product" | "tryon" | "my-looks" | "compare";
+
+/** Compare supports two or three looks, labelled A/B/C in selection order. */
+export const COMPARE_MIN = 2;
+export const COMPARE_MAX = 3;
 
 export type TryOnStatus = "idle" | "loading" | "success" | "error" | "demo" | "fallback";
 
@@ -29,6 +34,8 @@ interface ShowroomState {
   tryOnError: string | null;
   looks: SavedLook[];
   hydrated: boolean;
+  /** Saved-look ids chosen for side-by-side compare, in A/B/C order. */
+  compareIds: string[];
 
   hydrate: () => Promise<void>;
   setView: (view: View) => void;
@@ -37,6 +44,12 @@ interface ShowroomState {
   openMyLooks: () => void;
   startTryOn: (id: string) => void;
   backToProduct: () => void;
+
+  toggleCompare: (lookId: string) => void;
+  clearCompare: () => void;
+  enterCompare: () => void;
+  exitCompare: () => void;
+  recordFriendPick: (lookId: string) => Promise<void>;
 
   setPersonImage: (dataUrl: string) => Promise<void>;
   clearPerson: () => Promise<void>;
@@ -63,6 +76,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   tryOnError: null,
   looks: [],
   hydrated: false,
+  compareIds: [],
 
   hydrate: async () => {
     const [person, looks] = await Promise.all([loadPersonPhoto(), loadAllLooks()]);
@@ -102,6 +116,48 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
 
   backToProduct: () => set({ view: "product" }),
 
+  toggleCompare: (lookId) => {
+    const { compareIds } = get();
+    if (compareIds.includes(lookId)) {
+      set({ compareIds: compareIds.filter((id) => id !== lookId) });
+      return;
+    }
+    if (compareIds.length >= COMPARE_MAX) return;
+    set({ compareIds: [...compareIds, lookId] });
+  },
+
+  clearCompare: () => set({ compareIds: [] }),
+
+  enterCompare: () => {
+    const { compareIds, looks } = get();
+    // Drop ids whose looks were deleted since selection.
+    const valid = compareIds.filter((id) => looks.some((l) => l.id === id));
+    if (valid.length < COMPARE_MIN) {
+      set({ compareIds: valid });
+      return;
+    }
+    set({ compareIds: valid.slice(0, COMPARE_MAX), view: "compare" });
+  },
+
+  exitCompare: () => set({ view: "my-looks" }),
+
+  recordFriendPick: async (lookId) => {
+    const current = get().looks.find((l) => l.id === lookId);
+    if (!current) return;
+    // One live pick at a time: stamp the chosen look, clear it everywhere else.
+    const changed: SavedLook[] = [];
+    const next = get().looks.map((look) => {
+      const picked = look.id === lookId;
+      const friendPick = picked ? new Date().toISOString() : null;
+      if ((look.friendPick ?? null) === friendPick) return look;
+      const updated = { ...look, friendPick };
+      changed.push(updated);
+      return updated;
+    });
+    await dbSaveLooks(changed);
+    set({ looks: next });
+  },
+
   setPersonImage: async (dataUrl) => {
     // Changing the photo clears all previously saved looks.
     await clearAllLooks();
@@ -111,6 +167,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       personImage: dataUrl,
       personSavedAt: savedAt,
       looks: [],
+      compareIds: [],
     });
   },
 
@@ -154,7 +211,10 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
 
   removeLook: async (id) => {
     await dbDeleteLook(id);
-    set({ looks: get().looks.filter((l) => l.id !== id) });
+    set({
+      looks: get().looks.filter((l) => l.id !== id),
+      compareIds: get().compareIds.filter((cid) => cid !== id),
+    });
   },
 
   getCachedLook: (productId) => getLookByProductId(productId),
@@ -165,6 +225,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       personImage: null,
       personSavedAt: null,
       looks: [],
+      compareIds: [],
       tryOnStatus: "idle",
       tryOnImage: null,
       tryOnIsReal: false,
