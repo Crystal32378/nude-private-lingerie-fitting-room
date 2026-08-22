@@ -92,7 +92,7 @@ async function uploadFile(
 }
 
 function mapTaskError(error: unknown): string {
-  if (typeof error !== "string") return "YouCam V3 processing failed";
+  if (typeof error !== "string") return "YouCam Virtual Try-On processing failed";
   const known: Record<string, string> = {
     error_pose: "Pose could not be detected in your photo. Try a clearer front-facing photo.",
     error_nsfw_content_detected: "The result was blocked by content moderation.",
