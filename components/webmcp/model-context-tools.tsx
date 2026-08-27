@@ -4,6 +4,16 @@
  * Registers NUDE's four fitting-room capabilities on `document.modelContext`
  * so a visitor's own agent can use them.
  *
+ * No photo of the person and no try-on result is returned through these tools.
+ * That is a property of this interface only — rendering a fitting still sends
+ * the photo to Perfect Corp's YouCam service, as the README's Privacy section
+ * documents. Garment imagery and product pages ARE exposed, on purpose: they
+ * are NUDE's own public product photography, and an agent needs them to know
+ * what it is about to render.
+ *
+ * The tools are shaped for correctness over speed. A fitting room is finished
+ * work, not a fast answer.
+ *
  * WebMCP is a proposed standard (W3C Web Machine Learning CG). The imperative
  * API lives on `document.modelContext` — it moved there from `navigator` in
  * May 2026, and there is no `unregisterTool`: aborting the signal passed to
@@ -17,6 +27,7 @@
 import { useEffect } from "react";
 import {
   getFittingRoomState,
+  getPiece,
   listPieces,
   prepareFittingRoom,
   tryOnPiece,
@@ -49,6 +60,19 @@ const noInput = {
   additionalProperties: false,
 } as const;
 
+const pieceIdInputSchema = {
+  type: "object",
+  properties: {
+    pieceId: {
+      type: "string",
+      description: "A pieceId from nude.list_pieces, e.g. nude-01.",
+      pattern: "^nude-[0-9]{2}$",
+    },
+  },
+  required: ["pieceId"],
+  additionalProperties: false,
+} as const;
+
 const tryOnInputSchema = {
   type: "object",
   properties: {
@@ -66,28 +90,41 @@ const tryOnInputSchema = {
 const prepareInputSchema = {
   type: "object",
   properties: {
-    pieceIds: {
-      type: "array",
-      description:
-        "One to three pieceIds. Each must already have a real generated try-on.",
-      items: { type: "string", pattern: "^nude-[0-9]{2}$" },
-      minItems: 1,
-      maxItems: 3,
-    },
     brief: {
       type: "string",
       description:
         "The task restated in the person's own words, so she recognises it when she comes back hours later. E.g. 'Tokyo business trip — under a white shirt'.",
       maxLength: 200,
     },
-    rationale: {
+    pieces: {
+      type: "array",
+      description:
+        "One to three pieces, in the order you want her to see them. Each must already have a real generated try-on, and each needs its own reason — one blanket rationale for the set is not accepted.",
+      items: {
+        type: "object",
+        properties: {
+          pieceId: { type: "string", pattern: "^nude-[0-9]{2}$" },
+          why: {
+            type: "string",
+            description:
+              "What this specific piece does for this brief. Cite the construction detail you relied on, not a general impression.",
+            maxLength: 200,
+          },
+        },
+        required: ["pieceId", "why"],
+        additionalProperties: false,
+      },
+      minItems: 1,
+      maxItems: 3,
+    },
+    caveat: {
       type: "string",
       description:
-        "Why these pieces, in one or two sentences she can read at a glance.",
-      maxLength: 400,
+        "Anything you could not confirm — a colour the render cannot honour, a requirement only partly met, a piece included as the nearest available option, a requirement that strictly only one piece meets. Say all of it here rather than overclaiming. There is room; use it.",
+      maxLength: 700,
     },
   },
-  required: ["pieceIds", "brief", "rationale"],
+  required: ["brief", "pieces"],
   additionalProperties: false,
 } as const;
 
@@ -108,7 +145,7 @@ export function ModelContextTools() {
           name: "nude.list_pieces",
           title: "Browse the NUDE collection",
           description:
-            "List all nine NUDE pieces with full construction detail — wire, cup, padding, straps, closure, material, colours, sizes and structure notes. Use this to work out which pieces fit a request such as 'nude-toned and smooth under a white shirt'. Returns no images.",
+            "List all nine NUDE pieces with full construction detail — wire, cup, padding, straps, closure, material, colours, sizes and structure notes. Use this to work out which pieces fit a request such as 'nude-toned and smooth under a white shirt'. Returns no image data.",
           inputSchema: noInput,
           annotations: { readOnlyHint: true, untrustedContentHint: true },
           execute: () => listPieces(),
@@ -117,10 +154,22 @@ export function ModelContextTools() {
       ),
       modelContext.registerTool(
         {
+          name: "nude.get_piece",
+          title: "Look at one piece properly",
+          description:
+            "Open one piece in full: construction detail, sizes, description, its product page URL, and the actual garment image a try-on will send to cloth-v4. This is the step where you find out whether the colour you were about to promise is the colour that will render. Use it on every piece you are seriously considering before you render anything.",
+          inputSchema: pieceIdInputSchema,
+          annotations: { readOnlyHint: true, untrustedContentHint: true },
+          execute: (input) => getPiece(input as { pieceId?: unknown }),
+        },
+        options
+      ),
+      modelContext.registerTool(
+        {
           name: "nude.get_fitting_room_state",
           title: "Read the fitting room",
           description:
-            "Read this fitting room's state: whether a photo has been added, which try-ons have been generated and whether each is a real render, the current shortlist, and any preparation already handed over. Never returns the photo or any try-on image.",
+            "Read this fitting room's state: whether a photo has been added, which try-ons have been generated and whether each is a real render, the current shortlist, and any preparation already handed over. Returns no image data.",
           inputSchema: noInput,
           annotations: { readOnlyHint: true, untrustedContentHint: true },
           execute: () => getFittingRoomState(),
@@ -132,7 +181,7 @@ export function ModelContextTools() {
           name: "nude.try_on",
           title: "Try a piece on",
           description:
-            "Render one piece onto the photo already stored in this fitting room, using Perfect Corp's cloth-v4 virtual try-on. Takes roughly 10-30 seconds and runs one at a time. Requires that the person has already added a photo — this tool cannot supply or replace it. Returns whether the render succeeded and its lookId, never the image.",
+            "Render one piece onto the photo already stored in this fitting room, using Perfect Corp's cloth-v4 virtual try-on. Takes roughly 10-30 seconds and runs one at a time. Renders the piece's one fixed reference colourway — the colours listed by nude.list_pieces are purchase options, not render options. Requires that the person has already added a photo — this tool cannot supply or replace it. Returns whether the render succeeded and its lookId, and no image data.",
           inputSchema: tryOnInputSchema,
           annotations: { readOnlyHint: false, untrustedContentHint: true },
           execute: (input) => tryOnPiece(input as { pieceId?: unknown }),
@@ -144,12 +193,12 @@ export function ModelContextTools() {
           name: "nude.prepare_fitting_room",
           title: "Hand the fitting room over",
           description:
-            "The final step. Hand a shortlist of one to three pieces back to the person, together with a brief restating her task and a rationale for the selection, and put them side by side in her fitting room. Refuses unless every named piece already has a real generated try-on, so a prepared fitting room always contains the actual results.",
+            "The final step, once the fitting room is actually right. Hand back one to three pieces, each with its own reason, plus a brief restating her task and an optional caveat for anything you could not confirm. Refuses unless every named piece already has a real generated try-on and its own why — a prepared fitting room always contains the real results and a per-piece justification, never three plausible names. Getting here slowly is correct; getting here with the wrong pieces is not.",
           inputSchema: prepareInputSchema,
           annotations: { readOnlyHint: false, untrustedContentHint: true },
           execute: (input) =>
             prepareFittingRoom(
-              input as { pieceIds?: unknown; brief?: unknown; rationale?: unknown }
+              input as { brief?: unknown; pieces?: unknown; caveat?: unknown }
             ),
         },
         options

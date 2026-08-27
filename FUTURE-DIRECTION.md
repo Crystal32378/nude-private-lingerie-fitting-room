@@ -14,6 +14,19 @@ constraint first.
 Four capabilities on `document.modelContext`, one real generative try-on
 pipeline, one privacy boundary. Deliberately narrow.
 
+## 1b. Per-colourway render assets — the cheapest correctness win available
+
+Each piece currently has **one** `vtoImage`, so a try-on renders whatever
+colourway that single reference image happens to be. `colors` lists two or three
+purchasable colourways. An agent asked for "nude tones" therefore cannot deliver
+them, only disclose that it cannot — which is what `caveat` is for, but it is a
+disclosure standing in for a capability.
+
+Adding a nude-colourway reference image per piece would turn that disclosure
+into a real answer. It is a data task, not an engineering one: `try_on` would
+take an optional garment asset selected from the piece's own assets, allow-listed
+to NUDE's storefront CDN. Roughly ten lines, once the images exist.
+
 ## 2. Close the loop to real commerce
 
 NUDE is a real brand with a real storefront. Its catalogue, stock,

@@ -32,12 +32,13 @@ product the agent layer sits on top of, and it is **not** offered for judging:
 | Commit | Date | What |
 |---|---|---|
 | `3c34b30` | 27 Aug 2026 | `refactor: lift runTryOn from TryOnFlow into the showroom store` — zero behaviour change, prerequisite for making try-on agent-callable |
-| _this commit_ | 27 Aug 2026 | `feat(webmcp): four fitting-room capabilities on document.modelContext` |
+| `b735da5` | 27 Aug 2026 | `feat(webmcp): fitting-room capabilities on document.modelContext` |
+| _this commit_ | 27 Aug 2026 | `feat(webmcp): correctness-first tool surface, verified against real cloth-v4` |
 
 ### Files added
 
 ```
-lib/webmcp/capabilities.ts             the four capability handlers
+lib/webmcp/capabilities.ts             the five capability handlers
 components/webmcp/model-context-tools.tsx   registration on document.modelContext
 components/preparation-note.tsx        renders the agent's handoff to the person
 LICENSE  WHATS-NEW.md  FUTURE-DIRECTION.md

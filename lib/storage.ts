@@ -19,9 +19,18 @@ export interface PreparedBy {
    * the same millisecond.
    */
   preparationId: string;
+  /** The task in the person's own words, so she recognises it hours later. */
   brief: string;
-  rationale: string;
+  /** Why *this* piece earned its place. Required — one per piece. */
+  why: string;
+  /** Anything the agent could not confirm. Shared across the preparation. */
+  caveat?: string | null;
   preparedAt: string;
+  /**
+   * Position in the shortlist the agent asked for. `looks` is stored newest
+   * first, so without this the prepared set reads back reversed.
+   */
+  order: number;
 }
 
 export interface SavedLook {

@@ -57,9 +57,9 @@ interface ShowroomState {
    * compare set. Replaces any previous preparation.
    */
   prepareFittingRoom: (
-    lookIds: string[],
+    entries: { lookId: string; why: string }[],
     brief: string,
-    rationale: string
+    caveat: string | null
   ) => Promise<void>;
 
   setPersonImage: (dataUrl: string) => Promise<void>;
@@ -97,10 +97,15 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
 
   hydrate: async () => {
     const [person, looks] = await Promise.all([loadPersonPhoto(), loadAllLooks()]);
+    // compareIds is not persisted on its own. An agent-prepared shortlist has
+    // to survive the reload it exists for — she may open the fitting room
+    // hours later — so rebuild the compare set from the stored preparation.
+    const preparation = currentPreparation(looks);
     set({
       personImage: person?.dataUrl ?? null,
       personSavedAt: person?.savedAt ?? null,
       looks,
+      compareIds: preparation ? preparation.lookIds.slice(0, COMPARE_MAX) : [],
       hydrated: true,
     });
   },
@@ -175,15 +180,16 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
     set({ looks: next });
   },
 
-  prepareFittingRoom: async (lookIds, brief, rationale) => {
+  prepareFittingRoom: async (entries, brief, caveat) => {
     const preparedAt = new Date().toISOString();
     const preparationId = `prep-${preparedAt}-${Math.random().toString(36).slice(2, 8)}`;
-    const target = new Set(lookIds);
+    const byLookId = new Map(entries.map((e, i) => [e.lookId, { why: e.why, order: i }]));
     // One live preparation at a time: stamp the chosen looks, clear the rest.
     const changed: SavedLook[] = [];
     const next = get().looks.map((look) => {
-      const preparedBy: PreparedBy | null = target.has(look.id)
-        ? { preparationId, brief, rationale, preparedAt }
+      const entry = byLookId.get(look.id);
+      const preparedBy: PreparedBy | null = entry
+        ? { preparationId, brief, why: entry.why, caveat, preparedAt, order: entry.order }
         : null;
       if (!look.preparedBy && !preparedBy) return look;
       const updated = { ...look, preparedBy };
@@ -191,7 +197,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       return updated;
     });
     await dbSaveLooks(changed);
-    const compareIds = lookIds.slice(0, COMPARE_MAX);
+    const compareIds = entries.map((e) => e.lookId).slice(0, COMPARE_MAX);
     set({
       looks: next,
       compareIds,
@@ -341,8 +347,10 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
 export function currentPreparation(looks: SavedLook[]): {
   preparationId: string;
   brief: string;
-  rationale: string;
+  caveat: string | null;
   preparedAt: string;
+  /** In the order the agent shortlisted them. */
+  pieces: { lookId: string; pieceId: string; why: string }[];
   lookIds: string[];
   pieceIds: string[];
 } | null {
@@ -354,13 +362,22 @@ export function currentPreparation(looks: SavedLook[]): {
   const newest = stamped.reduce((a, b) =>
     a.preparedBy!.preparedAt >= b.preparedBy!.preparedAt ? a : b
   );
-  const { preparationId, brief, rationale, preparedAt } = newest.preparedBy!;
-  const set = stamped.filter((l) => l.preparedBy!.preparationId === preparationId);
+  const { preparationId, brief, caveat, preparedAt } = newest.preparedBy!;
+  const set = stamped
+    .filter((l) => l.preparedBy!.preparationId === preparationId)
+    // Report the shortlist in the order the agent asked for, not in `looks`
+    // order, which is newest first.
+    .sort((a, b) => (a.preparedBy!.order ?? 0) - (b.preparedBy!.order ?? 0));
   return {
     preparationId,
     brief,
-    rationale,
+    caveat: caveat ?? null,
     preparedAt,
+    pieces: set.map((l) => ({
+      lookId: l.id,
+      pieceId: l.productId,
+      why: l.preparedBy!.why,
+    })),
     lookIds: set.map((l) => l.id),
     pieceIds: set.map((l) => l.productId),
   };

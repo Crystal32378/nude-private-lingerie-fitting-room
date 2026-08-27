@@ -3,14 +3,27 @@
 /**
  * The four capabilities NUDE exposes to a visitor's own agent over WebMCP.
  *
- * One rule governs every return value in this file: **no pixels leave.** The
- * person photo and every generated try-on image stay in this browser's
- * IndexedDB and on the screen. An agent can decide what to try, trigger a real
- * Perfect Corp `cloth-v4` render, learn that it finished, and hand a prepared
- * shortlist back to the person — without the imagery ever entering its context.
+ * Two rules govern this interface, and they are about different things.
  *
- * `IMAGE_PAYLOAD` is returned in place of any image field so the absence is
- * explicit in the tool result rather than merely implied by omission.
+ * 1. **No photo of the person and no try-on result is returned through these
+ *    tools.** That is a claim about this interface only — rendering a fitting
+ *    does send the photo to Perfect Corp's YouCam service, as the README's
+ *    Privacy section documents. `PERSONAL_IMAGE` stands in wherever such a
+ *    field would sit, so the absence is explicit rather than merely implied.
+ *
+ * 2. **Garment imagery and product pages are exposed on purpose.** They are
+ *    NUDE's own public product photography, not anybody's private data, and an
+ *    agent needs them to know what it is about to render. Withholding them
+ *    would only make it guess.
+ *
+ * The second rule exists because of the first principle of this layer:
+ * **correctness before speed.** A fitting room is finished work, not a fast
+ * answer. An agent is expected to read the construction data, drill into the
+ * pieces that look plausible, see the actual garment asset a render will use,
+ * try pieces on one at a time, and — where it cannot confirm something — say
+ * so rather than render a result that quietly misleads. `prepare_fitting_room`
+ * enforces the shape of that: it will not accept a shortlist without a real
+ * generated render *and* a stated reason for every single piece.
  */
 
 import { NUDE_PRODUCTS, PRODUCT_COUNT, getProductById } from "@/lib/products";
@@ -21,11 +34,18 @@ import {
   useShowroomStore,
 } from "@/lib/store";
 
-export const IMAGE_PAYLOAD =
-  "not returned — the photo and every try-on image stay in this browser" as const;
+export const PERSONAL_IMAGE =
+  "not returned through WebMCP — no photo of the person and no try-on result leaves through these tools" as const;
+
+/** Back-compat alias. */
+export const IMAGE_PAYLOAD = PERSONAL_IMAGE;
 
 const BRIEF_MAX = 200;
-const RATIONALE_MAX = 400;
+const WHY_MAX = 200;
+// Generous on purpose: this field exists so an agent can be fully honest about
+// what it could not confirm. A tight cap would force it to truncate exactly the
+// disclosure the field is for.
+const CAVEAT_MAX = 700;
 
 type Failure = {
   ok: false;
@@ -67,7 +87,14 @@ export function listPieces() {
     brand: "NUDE",
     count: PRODUCT_COUNT,
     currency: "TWD",
-    imagePayload: IMAGE_PAYLOAD,
+    personalImages: PERSONAL_IMAGE,
+    tryOn: {
+      model: "Perfect Corp cloth-v4",
+      colourway:
+        "Each piece has one fixed reference garment image, so a try-on renders that single colourway. `colors` lists the colourways available to buy — it is NOT a choice a try-on can honour. Do not promise the person a colour on the strength of that list. Call nude.get_piece to see the actual garment asset a render will use, and open productUrl if you need to confirm what else exists before committing.",
+    },
+    workingNote:
+      "This is a starting point, not an answer. Read the construction fields, drill into the plausible pieces with nude.get_piece, and only then render. Taking longer and getting it right is the expected behaviour here.",
     pieces: NUDE_PRODUCTS.map((p) => ({
       pieceId: p.id,
       name: p.nameEn,
@@ -84,12 +111,69 @@ export function listPieces() {
       straps: p.straps,
       closure: p.closure,
       structureNotes: p.structureNotes,
+      productUrl: p.productUrl,
     })),
   };
 }
 
 /* ------------------------------------------------------------------ *
- * 2. nude.get_fitting_room_state — read-only
+ * 2. nude.get_piece — read-only, the drill-down
+ * ------------------------------------------------------------------ */
+
+/**
+ * One piece, in full, including the garment asset a try-on will actually use
+ * and the link to its product page. This is the step that corresponds to
+ * walking into the stockroom to look at the real garment before bringing it
+ * out: it is where an agent finds out that the colour it was about to promise
+ * is not the colour that will render.
+ */
+export function getPiece(input: { pieceId?: unknown }) {
+  const pieceId = typeof input?.pieceId === "string" ? input.pieceId.trim() : "";
+  if (!pieceId) {
+    return fail("INVALID_INPUT", "pieceId is required.", false);
+  }
+  const p = getProductById(pieceId);
+  if (!p) {
+    return fail(
+      "UNKNOWN_PIECE",
+      "No such piece. Call nude.list_pieces for the nine valid pieceIds.",
+      false,
+      { pieceId }
+    );
+  }
+  return {
+    ok: true as const,
+    pieceId: p.id,
+    name: p.nameEn,
+    nameZh: p.nameZh,
+    category: p.category,
+    sku: p.sku ?? null,
+    price: p.price,
+    priceLabel: p.priceLabel,
+    colorsAvailableToBuy: p.colors,
+    sizes: p.sizes,
+    material: p.material,
+    description: p.description,
+    construction: {
+      wire: p.wire,
+      cup: p.cup,
+      padding: p.padding,
+      straps: p.straps,
+      closure: p.closure,
+      notes: p.structureNotes,
+    },
+    productUrl: p.productUrl,
+    garmentAssets: {
+      catalogueImage: p.displayImage,
+      renderReference: p.vtoImage,
+      note: "renderReference is the single garment image nude.try_on will send to cloth-v4. Whatever colourway it shows is the colourway that will appear on the person, regardless of colorsAvailableToBuy. Look at it, or open productUrl, before you promise a colour.",
+    },
+    personalImages: PERSONAL_IMAGE,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * 3. nude.get_fitting_room_state — read-only
  * ------------------------------------------------------------------ */
 
 /**
@@ -104,7 +188,7 @@ export function getFittingRoomState() {
     photo: {
       present: s.personImage !== null,
       savedAt: s.personSavedAt,
-      payload: IMAGE_PAYLOAD,
+      payload: PERSONAL_IMAGE,
       note: "Only the person can add or replace this photo. No tool here can.",
     },
     currentView: s.view,
@@ -115,9 +199,9 @@ export function getFittingRoomState() {
       pieceId: l.productId,
       isRealTryOn: l.tryOnIsReal,
       createdAt: l.createdAt,
-      chosenByUserAt: l.friendPick ?? null,
+      friendPickRecordedAt: l.friendPick ?? null,
       partOfPreparation: l.preparedBy?.preparationId ?? null,
-      imagePayload: IMAGE_PAYLOAD,
+      personalImages: PERSONAL_IMAGE,
     })),
     compareLookIds: s.compareIds,
     preparation: currentPreparation(s.looks),
@@ -125,7 +209,7 @@ export function getFittingRoomState() {
 }
 
 /* ------------------------------------------------------------------ *
- * 3. nude.try_on — mutating
+ * 4. nude.try_on — mutating
  * ------------------------------------------------------------------ */
 
 // A try-on is a real Perfect Corp render against the person's photo; serialise
@@ -190,7 +274,7 @@ export async function tryOnPiece(input: { pieceId?: unknown }) {
       lookId: look?.id ?? null,
       rendered: "real Perfect Corp cloth-v4 result",
       elapsedMs,
-      imagePayload: IMAGE_PAYLOAD,
+      personalImages: PERSONAL_IMAGE,
     };
   }
 
@@ -212,58 +296,90 @@ export async function tryOnPiece(input: { pieceId?: unknown }) {
 }
 
 /* ------------------------------------------------------------------ *
- * 4. nude.prepare_fitting_room — mutating, and the last step
+ * 5. nude.prepare_fitting_room — mutating, and the last step
  * ------------------------------------------------------------------ */
 
 /**
- * The handoff. Understanding has to become delivery: this refuses unless every
- * named piece *already* has a real generated try-on saved. It cannot be used to
- * announce "I picked three for you" while the renders are missing, incomplete,
- * or attached to the wrong piece.
+ * The handoff, and the last step. Correctness is enforced here rather than
+ * hoped for:
+ *
+ *   - every named piece must ALREADY have a real generated try-on saved, so a
+ *     prepared fitting room always contains the actual results;
+ *   - every piece must carry its own `why`, so the shortlist cannot be handed
+ *     over as three plausible names with one blanket sentence;
+ *   - `caveat` exists so an agent that could not confirm something has
+ *     somewhere to say it, instead of quietly overclaiming.
+ *
+ * If it cannot deliver the right result, the right move is to say so here —
+ * not to render something that reads as an answer.
  */
 export async function prepareFittingRoom(input: {
-  pieceIds?: unknown;
   brief?: unknown;
-  rationale?: unknown;
+  pieces?: unknown;
+  caveat?: unknown;
 }) {
-  const raw = Array.isArray(input?.pieceIds) ? input.pieceIds : null;
+  const raw = Array.isArray(input?.pieces) ? input.pieces : null;
   if (!raw) {
-    return fail("INVALID_INPUT", "pieceIds must be an array of pieceId strings.", false);
+    return fail(
+      "INVALID_INPUT",
+      "pieces must be an array of { pieceId, why }. Every piece needs its own reason — one blanket rationale is not accepted.",
+      false
+    );
   }
-  const pieceIds = Array.from(
-    new Set(raw.filter((v): v is string => typeof v === "string").map((v) => v.trim()))
-  ).filter(Boolean);
 
-  if (pieceIds.length === 0 || pieceIds.length > COMPARE_MAX) {
+  const entries: { pieceId: string; why: string }[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const o = item as { pieceId?: unknown; why?: unknown } | null;
+    const pieceId = typeof o?.pieceId === "string" ? o.pieceId.trim() : "";
+    const why = typeof o?.why === "string" ? o.why.trim() : "";
+    if (!pieceId || !why) {
+      return fail(
+        "INVALID_INPUT",
+        "Each entry needs a pieceId and a non-empty why saying what that piece does for this brief.",
+        false,
+        { offending: o }
+      );
+    }
+    if (why.length > WHY_MAX) {
+      return fail("INVALID_INPUT", `why must be at most ${WHY_MAX} characters.`, false, { pieceId });
+    }
+    if (seen.has(pieceId)) continue;
+    seen.add(pieceId);
+    entries.push({ pieceId, why });
+  }
+
+  if (entries.length === 0 || entries.length > COMPARE_MAX) {
     return fail(
       "INVALID_INPUT",
       `Name between 1 and ${COMPARE_MAX} distinct pieces.`,
       false,
-      { received: pieceIds.length }
+      { received: entries.length }
     );
   }
 
   const brief = typeof input?.brief === "string" ? input.brief.trim() : "";
-  const rationale = typeof input?.rationale === "string" ? input.rationale.trim() : "";
-  if (!brief || !rationale) {
+  if (!brief) {
     return fail(
       "INVALID_INPUT",
-      "Both brief and rationale are required. brief restates the task in the person's own words; rationale says why these pieces.",
+      "brief is required — restate the task in the person's own words so she recognises it when she comes back.",
       false
     );
   }
-  if (brief.length > BRIEF_MAX || rationale.length > RATIONALE_MAX) {
-    return fail(
-      "INVALID_INPUT",
-      `brief must be at most ${BRIEF_MAX} characters and rationale at most ${RATIONALE_MAX}.`,
-      false
-    );
+  if (brief.length > BRIEF_MAX) {
+    return fail("INVALID_INPUT", `brief must be at most ${BRIEF_MAX} characters.`, false);
   }
+
+  const caveatRaw = typeof input?.caveat === "string" ? input.caveat.trim() : "";
+  if (caveatRaw.length > CAVEAT_MAX) {
+    return fail("INVALID_INPUT", `caveat must be at most ${CAVEAT_MAX} characters.`, false);
+  }
+  const caveat = caveatRaw || null;
 
   const s = useShowroomStore.getState();
   if (!s.hydrated) return NOT_HYDRATED();
 
-  const unknown = pieceIds.filter((id) => !getProductById(id));
+  const unknown = entries.filter((e) => !getProductById(e.pieceId)).map((e) => e.pieceId);
   if (unknown.length > 0) {
     return fail(
       "UNKNOWN_PIECE",
@@ -274,9 +390,9 @@ export async function prepareFittingRoom(input: {
   }
 
   // The invariant: a prepared fitting room must actually contain the renders.
-  const resolved = pieceIds.map((pieceId) => ({
-    pieceId,
-    look: s.looks.find((l) => l.productId === pieceId && l.tryOnIsReal) ?? null,
+  const resolved = entries.map((e) => ({
+    ...e,
+    look: s.looks.find((l) => l.productId === e.pieceId && l.tryOnIsReal) ?? null,
   }));
   const missing = resolved.filter((r) => r.look === null).map((r) => r.pieceId);
   if (missing.length > 0) {
@@ -288,19 +404,21 @@ export async function prepareFittingRoom(input: {
     );
   }
 
-  const lookIds = resolved.map((r) => r.look!.id);
-  await s.prepareFittingRoom(lookIds, brief, rationale);
+  await s.prepareFittingRoom(
+    resolved.map((r) => ({ lookId: r.look!.id, why: r.why })),
+    brief,
+    caveat
+  );
 
   return {
     ok: true as const,
-    prepared: lookIds.length,
-    lookIds,
-    pieceIds,
+    prepared: resolved.length,
     brief,
-    rationale,
-    sideBySide: lookIds.length >= COMPARE_MIN,
-    imagePayload: IMAGE_PAYLOAD,
+    caveat,
+    pieces: resolved.map((r) => ({ pieceId: r.pieceId, lookId: r.look!.id, why: r.why })),
+    sideBySide: resolved.length >= COMPARE_MIN,
+    personalImages: PERSONAL_IMAGE,
     handoff:
-      "The prepared shortlist and this note are now waiting in the person's fitting room. She decides.",
+      "The prepared shortlist, the reason for each piece and any caveat are now waiting in the person's fitting room, alongside the real renders. She decides.",
   };
 }
