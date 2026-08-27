@@ -6,6 +6,24 @@ export interface SavedPerson {
   savedAt: string;
 }
 
+/**
+ * The handoff an agent leaves behind when it prepares the fitting room:
+ * the task in the user's own terms, why these pieces, and when.
+ * Written by `nude.prepare_fitting_room`; every look in one preparation
+ * shares the same `preparedAt`.
+ */
+export interface PreparedBy {
+  /**
+   * Identifies one preparation. Looks are stamped in a single pass, so a
+   * timestamp alone is not a safe identifier — two preparations can land in
+   * the same millisecond.
+   */
+  preparationId: string;
+  brief: string;
+  rationale: string;
+  preparedAt: string;
+}
+
 export interface SavedLook {
   id: string;
   productId: string;
@@ -15,6 +33,8 @@ export interface SavedLook {
   updatedAt: string;
   /** ISO timestamp recorded when the user transcribed a friend's pick for this look. */
   friendPick?: string | null;
+  /** Set when an agent handed this look over as part of a prepared shortlist. */
+  preparedBy?: PreparedBy | null;
 }
 
 const DB_NAME = "nude-virtual-showroom";

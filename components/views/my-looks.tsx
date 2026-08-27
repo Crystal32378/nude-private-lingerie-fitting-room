@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Check, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { Logo } from "@/components/logo";
+import { PreparationNote } from "@/components/preparation-note";
 import { getProductById } from "@/lib/products";
 import { COMPARE_MAX, COMPARE_MIN, useShowroomStore } from "@/lib/store";
 
@@ -75,6 +76,8 @@ export function MyLooksView() {
             </button>
           )}
         </div>
+
+        <PreparationNote />
 
         {looks.length === 0 ? (
           <div className="mt-20 flex flex-col items-center py-16 text-center">

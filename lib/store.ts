@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import {
+  PreparedBy,
   SavedLook,
   clearAll,
   clearAllLooks,
@@ -51,6 +52,15 @@ interface ShowroomState {
   enterCompare: () => void;
   exitCompare: () => void;
   recordFriendPick: (lookId: string) => Promise<void>;
+  /**
+   * Stamp `lookIds` as one agent-prepared shortlist and make it the live
+   * compare set. Replaces any previous preparation.
+   */
+  prepareFittingRoom: (
+    lookIds: string[],
+    brief: string,
+    rationale: string
+  ) => Promise<void>;
 
   setPersonImage: (dataUrl: string) => Promise<void>;
   clearPerson: () => Promise<void>;
@@ -163,6 +173,30 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
     });
     await dbSaveLooks(changed);
     set({ looks: next });
+  },
+
+  prepareFittingRoom: async (lookIds, brief, rationale) => {
+    const preparedAt = new Date().toISOString();
+    const preparationId = `prep-${preparedAt}-${Math.random().toString(36).slice(2, 8)}`;
+    const target = new Set(lookIds);
+    // One live preparation at a time: stamp the chosen looks, clear the rest.
+    const changed: SavedLook[] = [];
+    const next = get().looks.map((look) => {
+      const preparedBy: PreparedBy | null = target.has(look.id)
+        ? { preparationId, brief, rationale, preparedAt }
+        : null;
+      if (!look.preparedBy && !preparedBy) return look;
+      const updated = { ...look, preparedBy };
+      changed.push(updated);
+      return updated;
+    });
+    await dbSaveLooks(changed);
+    const compareIds = lookIds.slice(0, COMPARE_MAX);
+    set({
+      looks: next,
+      compareIds,
+      view: compareIds.length >= COMPARE_MIN ? "compare" : "my-looks",
+    });
   },
 
   setPersonImage: async (dataUrl) => {
@@ -302,3 +336,32 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
     });
   },
 }));
+
+/** The live agent preparation, or null. Pure — safe to call from render. */
+export function currentPreparation(looks: SavedLook[]): {
+  preparationId: string;
+  brief: string;
+  rationale: string;
+  preparedAt: string;
+  lookIds: string[];
+  pieceIds: string[];
+} | null {
+  const stamped = looks.filter((l) => l.preparedBy);
+  if (stamped.length === 0) return null;
+  // Only one preparation is ever stamped at a time — prepareFittingRoom clears
+  // the others in the same pass. Group by preparationId anyway so a partial
+  // write can never merge two preparations into one note.
+  const newest = stamped.reduce((a, b) =>
+    a.preparedBy!.preparedAt >= b.preparedBy!.preparedAt ? a : b
+  );
+  const { preparationId, brief, rationale, preparedAt } = newest.preparedBy!;
+  const set = stamped.filter((l) => l.preparedBy!.preparationId === preparationId);
+  return {
+    preparationId,
+    brief,
+    rationale,
+    preparedAt,
+    lookIds: set.map((l) => l.id),
+    pieceIds: set.map((l) => l.productId),
+  };
+}

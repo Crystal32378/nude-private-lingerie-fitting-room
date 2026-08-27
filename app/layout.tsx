@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Jost } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
+import { ModelContextTools } from "@/components/webmcp/model-context-tools";
 import "./globals.css";
 
 const jost = Jost({
@@ -37,13 +38,24 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Lets WebMCP run on stable Chrome for visitors who have not enabled the
+  // testing flag themselves. Absent, the API is simply undefined and the
+  // storefront behaves exactly as before.
+  const webmcpOriginTrialToken = process.env.WEBMCP_ORIGIN_TRIAL_TOKEN;
+
   return (
     <html lang="en">
+      <head>
+        {webmcpOriginTrialToken ? (
+          <meta httpEquiv="origin-trial" content={webmcpOriginTrialToken} />
+        ) : null}
+      </head>
       <body
         className={`${jost.variable} font-body antialiased bg-background text-foreground`}
       >
         {children}
         <Toaster />
+        <ModelContextTools />
       </body>
     </html>
   );
