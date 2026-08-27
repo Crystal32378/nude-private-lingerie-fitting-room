@@ -4,14 +4,14 @@
 > of scope for the WebMCP Challenge. It is recorded so the direction is legible
 > and so the next step does not have to be re-derived.
 
-What ships today is a **single-brand reference implementation**: four
+What ships today is a **single-brand reference implementation**: five
 capabilities on one fitting room, complete and working end to end. The
 direction below is the order in which we think it should grow, hardest
 constraint first.
 
 ## 1. Single-brand reference implementation — *current submission*
 
-Four capabilities on `document.modelContext`, one real generative try-on
+Five capabilities on `document.modelContext`, one real generative try-on
 pipeline, one privacy boundary. Deliberately narrow.
 
 ## 1b. Per-colourway render assets — done
@@ -50,6 +50,8 @@ Deliberately not attempted in a seven-day window.
 The five tools here are not NUDE-specific in shape:
 
 - list what the brand sells, with the construction detail the catalogue page hides
+- inspect one piece properly, including the garment asset a render will actually
+  use, so a colour is never promised that cannot be delivered
 - read the fitting room, redacted
 - render one piece onto the photo already held in the browser, returning no
   image payload through the tool
