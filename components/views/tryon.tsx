@@ -87,11 +87,8 @@ function TryOnFlow({ productId }: { productId: string }) {
   const tryOnStatus = useShowroomStore((s) => s.tryOnStatus);
   const tryOnImage = useShowroomStore((s) => s.tryOnImage);
   const tryOnError = useShowroomStore((s) => s.tryOnError);
-  const setTryOnLoading = useShowroomStore((s) => s.setTryOnLoading);
-  const setTryOnSuccess = useShowroomStore((s) => s.setTryOnSuccess);
-  const setTryOnError = useShowroomStore((s) => s.setTryOnError);
   const resetTryOn = useShowroomStore((s) => s.resetTryOn);
-  const saveCurrentLook = useShowroomStore((s) => s.saveCurrentLook);
+  const runStoreTryOn = useShowroomStore((s) => s.runTryOn);
   const backToProduct = useShowroomStore((s) => s.backToProduct);
   const startTryOn = useShowroomStore((s) => s.startTryOn);
 
@@ -99,6 +96,10 @@ function TryOnFlow({ productId }: { productId: string }) {
   const ranOnce = useRef(false);
   const freshKey = useRef<string | null>(null);
 
+  // The auto-run effect below can fire more than once per mount; this guard keeps
+  // a single automatic try-on per product/photo pair. Explicit retries pass
+  // fresh=true and always run. The network work itself lives in the store so it
+  // is reachable from outside this component.
   const runTryOn = useCallback(
     async (fresh: boolean) => {
       const product = getProductById(productId);
@@ -110,63 +111,9 @@ function TryOnFlow({ productId }: { productId: string }) {
       freshKey.current = cacheKey;
       ranOnce.current = true;
 
-      setTryOnLoading();
-      try {
-        const personBlob = await (await fetch(person)).blob();
-        const garmentBlob = await (
-          await fetch(product.vtoImage, { mode: "cors" })
-        ).blob();
-        const form = new FormData();
-        form.append("person", personBlob, "person.jpg");
-        form.append("garment", garmentBlob, `${productId}.jpg`);
-        form.append("garmentCategory", product.youcamCategory);
-        form.append("garmentName", productId);
-
-        let res: Response | null = null;
-        for (let attempt = 0; attempt < 2; attempt++) {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 150_000);
-          try {
-            res = await fetch("/api/tryon", {
-              method: "POST",
-              body: form,
-              signal: controller.signal,
-            });
-            break;
-          } catch (err) {
-            if (attempt === 1) {
-              setTryOnError(
-                err instanceof DOMException && err.name === "AbortError"
-                  ? "Try-on timed out after 150 seconds."
-                  : "Connection interrupted. Please check your network and try again."
-              );
-              return;
-            }
-          } finally {
-            clearTimeout(timer);
-          }
-        }
-        if (!res) return;
-        const data = await res.json().catch(() => null);
-
-        if (!res.ok || !data?.ok || !data?.imageUrl) {
-          const message =
-            data?.youcamError ?? data?.error ?? "Network error during try-on";
-          setTryOnError(message);
-          return;
-        }
-
-        const isReal = !data.fallback && !data.demo;
-        setTryOnSuccess(data.imageUrl, isReal);
-        if (isReal) {
-          useShowroomStore.setState({ tryOnStatus: "success" });
-          await saveCurrentLook();
-        }
-      } catch {
-        setTryOnError("Connection interrupted. Please try again.");
-      }
+      await runStoreTryOn(productId);
     },
-    [productId, saveCurrentLook, setTryOnError, setTryOnLoading, setTryOnSuccess]
+    [productId, runStoreTryOn]
   );
 
   useEffect(() => {

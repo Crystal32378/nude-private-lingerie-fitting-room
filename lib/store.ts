@@ -14,6 +14,7 @@ import {
   saveLooks as dbSaveLooks,
   savePersonPhoto,
 } from "./storage";
+import { getProductById } from "./products";
 
 export type View = "showroom" | "product" | "tryon" | "my-looks" | "compare";
 
@@ -58,6 +59,12 @@ interface ShowroomState {
   setTryOnSuccess: (image: string, isReal: boolean) => void;
   setTryOnError: (message: string) => void;
   resetTryOn: () => void;
+  /**
+   * Run a Perfect Corp `cloth-v4` try-on for `productId` against the stored
+   * person photo, updating try-on state and auto-saving a real result.
+   * Callers own their own de-duplication.
+   */
+  runTryOn: (productId: string) => Promise<void>;
 
   saveCurrentLook: () => Promise<void>;
   removeLook: (id: string) => Promise<void>;
@@ -190,6 +197,68 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       tryOnIsReal: false,
       tryOnError: null,
     }),
+
+  runTryOn: async (productId) => {
+    const product = getProductById(productId);
+    const person = get().personImage;
+    if (!product || !person) return;
+
+    get().setTryOnLoading();
+    try {
+      const personBlob = await (await fetch(person)).blob();
+      const garmentBlob = await (
+        await fetch(product.vtoImage, { mode: "cors" })
+      ).blob();
+      const form = new FormData();
+      form.append("person", personBlob, "person.jpg");
+      form.append("garment", garmentBlob, `${productId}.jpg`);
+      form.append("garmentCategory", product.youcamCategory);
+      form.append("garmentName", productId);
+
+      let res: Response | null = null;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 150_000);
+        try {
+          res = await fetch("/api/tryon", {
+            method: "POST",
+            body: form,
+            signal: controller.signal,
+          });
+          break;
+        } catch (err) {
+          if (attempt === 1) {
+            get().setTryOnError(
+              err instanceof DOMException && err.name === "AbortError"
+                ? "Try-on timed out after 150 seconds."
+                : "Connection interrupted. Please check your network and try again."
+            );
+            return;
+          }
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      if (!res) return;
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok || !data?.imageUrl) {
+        const message =
+          data?.youcamError ?? data?.error ?? "Network error during try-on";
+        get().setTryOnError(message);
+        return;
+      }
+
+      const isReal = !data.fallback && !data.demo;
+      get().setTryOnSuccess(data.imageUrl, isReal);
+      if (isReal) {
+        set({ tryOnStatus: "success" });
+        await get().saveCurrentLook();
+      }
+    } catch {
+      get().setTryOnError("Connection interrupted. Please try again.");
+    }
+  },
 
   saveCurrentLook: async () => {
     const { selectedProductId, tryOnImage, tryOnIsReal, looks } = get();
