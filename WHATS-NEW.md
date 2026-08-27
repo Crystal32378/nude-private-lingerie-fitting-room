@@ -34,7 +34,8 @@ product the agent layer sits on top of, and it is **not** offered for judging:
 | `3c34b30` | 27 Aug 2026 | `refactor: lift runTryOn from TryOnFlow into the showroom store` — zero behaviour change, prerequisite for making try-on agent-callable |
 | `b735da5` | 27 Aug 2026 | `feat(webmcp): fitting-room capabilities on document.modelContext` |
 | `0dba601` | 27 Aug 2026 | `feat(webmcp): correctness-first tool surface, verified against real cloth-v4` |
-| _this commit_ | 27 Aug 2026 | `feat(webmcp): renderable colourways, so a colour brief can be delivered not just disclosed` |
+| `6a8f6a9` | 27 Aug 2026 | `feat(webmcp): renderable colourways, so a colour brief is delivered not disclosed` |
+| _this commit_ | 27 Aug 2026 | `docs: align claims with the shipped surface` |
 
 ### Files added
 
@@ -59,6 +60,9 @@ README.md           WebMCP section
 
 ### Not changed
 
-`app/api/tryon/route.ts` · `lib/products.ts` · `lib/share-card.ts` ·
-`components/views/{showroom,product-detail,tryon}.tsx` — the try-on pipeline,
-the catalogue and the existing consumer flows are untouched.
+`app/api/tryon/route.ts` · `lib/share-card.ts` ·
+`components/views/{showroom,product-detail,tryon}.tsx` — the try-on API route
+and the existing consumer flows are untouched.
+
+`lib/products.ts` is additive only: a `vtoAssets` field plus two helpers. No
+existing product field, price, image URL or copy was altered.

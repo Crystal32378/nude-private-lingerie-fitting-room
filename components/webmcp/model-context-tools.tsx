@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Registers NUDE's four fitting-room capabilities on `document.modelContext`
+ * Registers NUDE's five fitting-room capabilities on `document.modelContext`
  * so a visitor's own agent can use them.
  *
  * No photo of the person and no try-on result is returned through these tools.

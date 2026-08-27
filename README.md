@@ -6,9 +6,10 @@ Challenge (API World 2026).
 
 Licensed under the [MIT License](./LICENSE) — code only. NUDE product names,
 copy and garment imagery are the property of NUDE and are not covered by that
-licence; the garment photography referenced by this application is served from
-NUDE's own storefront CDN. New work for the WebMCP Challenge is separated in
-[WHATS-NEW.md](./WHATS-NEW.md).
+licence. Catalogue and default try-on images are referenced from NUDE's own
+storefront CDN; the nude-colourway reference crops in `public/garments/` are
+derived from NUDE's own studio originals, held by the brand. New work for the
+WebMCP Challenge is separated in [WHATS-NEW.md](./WHATS-NEW.md).
 
 ## Stack
 
@@ -36,23 +37,24 @@ what it can do.
 
 The data that answers *"will this show under a white shirt"* already exists on
 NUDE's own product pages — as prose, for people. Nothing exposes it as
-structure. That is not a gap in NUDE; **it is the normal state of retail.** The
-brand that built this has never had an agent-readable storefront, and neither
-has anyone it competes with.
+structure. NUDE's own storefront has never had an agent-readable surface, which
+is what made building one here worth doing.
 
 We can say what the alternative costs, because we paid it. Locating one nude
 colourway reference per piece meant crawling seven of NUDE's own product pages,
 ranking candidate images by pixel darkness to guess which was the nude one, and
 inspecting them by hand — and the top-ranked candidate for one piece turned out
-to be a photograph of its *back*. That is the best an agent can do without a
-tool layer, and it is not good enough to hand someone a fitting room.
+to be a photograph of its *back*. Working from the rendered pages alone was
+unreliable enough that we would not hand the result to someone as a finished
+fitting room.
 
 ### The principle: correctness before speed
 
-A fitting room is finished work, not a fast answer. Buying a bra in a shop
-takes an hour, and most of that hour is somebody going into the stockroom to
-find the right construction in the right colour. The tools here are shaped for
-an agent doing that same work:
+A fitting room is finished work, not a fast answer. Fitting intimate apparel in
+a shop is already a long task, and the length is not waste: it is research,
+retrieval of the right construction in the right colour, and the physical
+try-on itself. The tools here are shaped for an agent doing the first two parts
+of that work:
 
 1. read the construction data for the whole range,
 2. drill into the pieces that look plausible and see the **actual garment asset
@@ -88,7 +90,7 @@ only make it guess — which is exactly the failure this layer is built to avoid
 | Tool | Read/write | What it does |
 |---|---|---|
 | `nude.list_pieces` | read-only | All nine pieces with the construction detail the catalogue grid hides — wire, cup, padding, straps, closure, material, structure notes — plus each product page URL. Explicitly labelled as a starting point, not an answer. |
-| `nude.get_piece` | read-only | One piece in full, **including the garment images a try-on can actually send to `cloth-v4`**, by colourway. This is the stockroom step: it is where an agent finds out which colours it can honour and which it cannot. |
+| `nude.get_piece` | read-only | One piece in full, **including the garment images a try-on can actually send to `cloth-v4`**, by colourway. This is the retrieval step: it is where an agent finds out which colours it can honour and which it cannot. |
 | `nude.get_fitting_room_state` | read-only | The redacted fitting room: whether a photo exists, which try-ons were generated and whether each is real, the current shortlist, any preparation already handed over. |
 | `nude.try_on` | mutating | Renders one piece onto the stored photo via `cloth-v4`, optionally in a named colourway. 10–30s, serialised — parallel calls are refused rather than raced. A colour it cannot render is refused, never substituted. Returns a `lookId`, whether the render was real, and which colourway is now on the person. |
 | `nude.prepare_fitting_room` | mutating | The handoff, and the last step. |
@@ -205,8 +207,11 @@ seven). NUDE's product photography is not covered by the MIT licence.
 - Your photo is stored **only in this browser** (IndexedDB), downscaled client-side
   before use.
 - A try-on request sends the photo to Perfect Corp's YouCam VTO API purely to render
-  the result. The server processes requests in memory and **never persists photos or
-  results**.
+  the result. NUDE's `/api/tryon` route holds the request in memory and **does not
+  persist photos or results** — no database, no filesystem writes, no logging of
+  image data. What Perfect Corp does with the upload is governed by their own
+  terms and retention policy, which this project does not control and does not
+  make claims about.
 - Finished looks are saved back to this device only. "Clear Local Data" in My Looks
   wipes everything.
 

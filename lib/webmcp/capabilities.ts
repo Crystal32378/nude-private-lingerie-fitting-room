@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The four capabilities NUDE exposes to a visitor's own agent over WebMCP.
+ * The five capabilities NUDE exposes to a visitor's own agent over WebMCP.
  *
  * Two rules govern this interface, and they are about different things.
  *

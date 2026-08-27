@@ -45,13 +45,14 @@ decides → she continues into the existing Shopline inventory and checkout.
 
 Deliberately not attempted in a seven-day window.
 
-## 3. Generalise the four capabilities
+## 3. Generalise the five capabilities
 
-The four tools here are not NUDE-specific in shape:
+The five tools here are not NUDE-specific in shape:
 
 - list what the brand sells, with the construction detail the catalogue page hides
 - read the fitting room, redacted
-- render one piece onto a photo that never leaves the browser
+- render one piece onto the photo already held in the browser, returning no
+  image payload through the tool
 - hand a prepared shortlist back to the person, with the task restated
 
 That is a plausible **fitting-room capability interface** any apparel brand
@@ -64,9 +65,10 @@ the person's agent visits several brands, each exposing its own tools, and
 brings candidates back into **one private fitting room that belongs to her, not
 to any brand**.
 
-The privacy boundary is what makes this coherent rather than alarming: her
-agent walks through three brands, none of them sees her, and neither does the
-agent.
+The tool boundary is what keeps this tractable rather than alarming: at each
+brand, no photo of the person and no try-on result is returned through the
+WebMCP tools, so a shortlist can be assembled across brands out of structured
+results.
 
 Three things must be true first, and none of them are today:
 
