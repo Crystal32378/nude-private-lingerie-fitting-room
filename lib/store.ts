@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import {
+  PreparedBy,
   SavedLook,
   clearAll,
   clearAllLooks,
@@ -14,7 +15,7 @@ import {
   saveLooks as dbSaveLooks,
   savePersonPhoto,
 } from "./storage";
-import { getProductById } from "./products";
+import { getProductById, resolveGarment } from "./products";
 
 export type View = "showroom" | "product" | "tryon" | "my-looks" | "compare";
 
@@ -33,6 +34,8 @@ interface ShowroomState {
   tryOnImage: string | null;
   tryOnIsReal: boolean;
   tryOnError: string | null;
+  /** Colourway being rendered, or null for the unlabelled default. */
+  tryOnColour: string | null;
   looks: SavedLook[];
   hydrated: boolean;
   /** Saved-look ids chosen for side-by-side compare, in A/B/C order. */
@@ -51,6 +54,15 @@ interface ShowroomState {
   enterCompare: () => void;
   exitCompare: () => void;
   recordFriendPick: (lookId: string) => Promise<void>;
+  /**
+   * Stamp `lookIds` as one agent-prepared shortlist and make it the live
+   * compare set. Replaces any previous preparation.
+   */
+  prepareFittingRoom: (
+    entries: { lookId: string; why: string }[],
+    brief: string,
+    caveat: string | null
+  ) => Promise<void>;
 
   setPersonImage: (dataUrl: string) => Promise<void>;
   clearPerson: () => Promise<void>;
@@ -64,7 +76,7 @@ interface ShowroomState {
    * person photo, updating try-on state and auto-saving a real result.
    * Callers own their own de-duplication.
    */
-  runTryOn: (productId: string) => Promise<void>;
+  runTryOn: (productId: string, colour?: string | null) => Promise<void>;
 
   saveCurrentLook: () => Promise<void>;
   removeLook: (id: string) => Promise<void>;
@@ -81,16 +93,22 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   tryOnImage: null,
   tryOnIsReal: false,
   tryOnError: null,
+  tryOnColour: null,
   looks: [],
   hydrated: false,
   compareIds: [],
 
   hydrate: async () => {
     const [person, looks] = await Promise.all([loadPersonPhoto(), loadAllLooks()]);
+    // compareIds is not persisted on its own. An agent-prepared shortlist has
+    // to survive the reload it exists for — she may open the fitting room
+    // hours later — so rebuild the compare set from the stored preparation.
+    const preparation = currentPreparation(looks);
     set({
       personImage: person?.dataUrl ?? null,
       personSavedAt: person?.savedAt ?? null,
       looks,
+      compareIds: preparation ? preparation.lookIds.slice(0, COMPARE_MAX) : [],
       hydrated: true,
     });
   },
@@ -165,6 +183,31 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
     set({ looks: next });
   },
 
+  prepareFittingRoom: async (entries, brief, caveat) => {
+    const preparedAt = new Date().toISOString();
+    const preparationId = `prep-${preparedAt}-${Math.random().toString(36).slice(2, 8)}`;
+    const byLookId = new Map(entries.map((e, i) => [e.lookId, { why: e.why, order: i }]));
+    // One live preparation at a time: stamp the chosen looks, clear the rest.
+    const changed: SavedLook[] = [];
+    const next = get().looks.map((look) => {
+      const entry = byLookId.get(look.id);
+      const preparedBy: PreparedBy | null = entry
+        ? { preparationId, brief, why: entry.why, caveat, preparedAt, order: entry.order }
+        : null;
+      if (!look.preparedBy && !preparedBy) return look;
+      const updated = { ...look, preparedBy };
+      changed.push(updated);
+      return updated;
+    });
+    await dbSaveLooks(changed);
+    const compareIds = entries.map((e) => e.lookId).slice(0, COMPARE_MAX);
+    set({
+      looks: next,
+      compareIds,
+      view: compareIds.length >= COMPARE_MIN ? "compare" : "my-looks",
+    });
+  },
+
   setPersonImage: async (dataUrl) => {
     // Changing the photo clears all previously saved looks.
     await clearAllLooks();
@@ -198,16 +241,27 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       tryOnError: null,
     }),
 
-  runTryOn: async (productId) => {
+  runTryOn: async (productId, colour) => {
     const product = getProductById(productId);
     const person = get().personImage;
     if (!product || !person) return;
 
+    const garment = resolveGarment(product, colour);
+    if ("error" in garment) {
+      get().setTryOnError(
+        `This piece cannot be rendered in ${colour}. Renderable: ${
+          garment.renderable.join(", ") || "none"
+        }.`
+      );
+      return;
+    }
+
+    set({ tryOnColour: garment.colour });
     get().setTryOnLoading();
     try {
       const personBlob = await (await fetch(person)).blob();
       const garmentBlob = await (
-        await fetch(product.vtoImage, { mode: "cors" })
+        await fetch(garment.image, { mode: "cors" })
       ).blob();
       const form = new FormData();
       form.append("person", personBlob, "person.jpg");
@@ -261,7 +315,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   },
 
   saveCurrentLook: async () => {
-    const { selectedProductId, tryOnImage, tryOnIsReal, looks } = get();
+    const { selectedProductId, tryOnImage, tryOnIsReal, tryOnColour, looks } = get();
     if (!selectedProductId || !tryOnImage) return;
     // Keep only the latest look per product.
     const filtered = looks.filter((l) => l.productId !== selectedProductId);
@@ -271,6 +325,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       productId: selectedProductId,
       imageUrl: tryOnImage,
       tryOnIsReal,
+      renderedColour: tryOnColour,
       createdAt: now,
       updatedAt: now,
     };
@@ -302,3 +357,43 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
     });
   },
 }));
+
+/** The live agent preparation, or null. Pure — safe to call from render. */
+export function currentPreparation(looks: SavedLook[]): {
+  preparationId: string;
+  brief: string;
+  caveat: string | null;
+  preparedAt: string;
+  /** In the order the agent shortlisted them. */
+  pieces: { lookId: string; pieceId: string; why: string }[];
+  lookIds: string[];
+  pieceIds: string[];
+} | null {
+  const stamped = looks.filter((l) => l.preparedBy);
+  if (stamped.length === 0) return null;
+  // Only one preparation is ever stamped at a time — prepareFittingRoom clears
+  // the others in the same pass. Group by preparationId anyway so a partial
+  // write can never merge two preparations into one note.
+  const newest = stamped.reduce((a, b) =>
+    a.preparedBy!.preparedAt >= b.preparedBy!.preparedAt ? a : b
+  );
+  const { preparationId, brief, caveat, preparedAt } = newest.preparedBy!;
+  const set = stamped
+    .filter((l) => l.preparedBy!.preparationId === preparationId)
+    // Report the shortlist in the order the agent asked for, not in `looks`
+    // order, which is newest first.
+    .sort((a, b) => (a.preparedBy!.order ?? 0) - (b.preparedBy!.order ?? 0));
+  return {
+    preparationId,
+    brief,
+    caveat: caveat ?? null,
+    preparedAt,
+    pieces: set.map((l) => ({
+      lookId: l.id,
+      pieceId: l.productId,
+      why: l.preparedBy!.why,
+    })),
+    lookIds: set.map((l) => l.id),
+    pieceIds: set.map((l) => l.productId),
+  };
+}

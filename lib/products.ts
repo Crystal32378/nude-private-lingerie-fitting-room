@@ -1,3 +1,13 @@
+/**
+ * A garment reference image whose colourway is known, so `nude.try_on` can
+ * render that colourway on request instead of only the default reference.
+ */
+export interface GarmentAsset {
+  /** Colourway label, matching an entry in the product's `colors`. */
+  colour: string;
+  image: string;
+}
+
 export interface Product {
   id: string;
   nameZh: string;
@@ -9,6 +19,12 @@ export interface Product {
   priceLabel: string;
   displayImage: string;
   vtoImage: string;
+  /**
+   * Reference images whose colourway is confirmed. `vtoImage` stays the
+   * default and its colourway is deliberately NOT asserted — it was never
+   * labelled. Only colours listed here can actually be rendered.
+   */
+  vtoAssets?: GarmentAsset[];
   colors: string[];
   sizes: string[];
   material: string;
@@ -49,6 +65,7 @@ export const NUDE_PRODUCTS: Product[] = [
     structureNotes:
       "Seamless one-piece molded cup with underwire. BC cups have integrated 8mm lower padding, D cup has no padding. Tests VTO on a smooth-contour 3/4 cup with no visible seams.",
     youcamCategory: "upper_body",
+    vtoAssets: [{ colour: "裸膚", image: "/garments/nude-01-nude.jpg" }],
   },
   {
     id: "nude-02",
@@ -76,6 +93,7 @@ export const NUDE_PRODUCTS: Product[] = [
     structureNotes:
       "Wireless 3/4 cup with memory-foam integrated padding and jacquard weave fabric. Tests VTO on a soft-cup no-wire silhouette with shallow cup depth.",
     youcamCategory: "upper_body",
+    vtoAssets: [{ colour: "裸膚", image: "/garments/nude-02-nude.jpg" }],
   },
   {
     id: "nude-03",
@@ -103,6 +121,7 @@ export const NUDE_PRODUCTS: Product[] = [
     structureNotes:
       "1/2 cup balconette with soft underwire, convertible/detachable straps (can be worn strapless), removable heart-shaped push-up pads with 8mm upper-side thickening. Tests VTO on a low-cut neckline silhouette.",
     youcamCategory: "upper_body",
+    vtoAssets: [{ colour: "裸粉膚", image: "/garments/nude-03-nude.jpg" }],
   },
   {
     id: "nude-04",
@@ -186,6 +205,7 @@ export const NUDE_PRODUCTS: Product[] = [
     structureNotes:
       "Wireless 3/4 cup triangle bralette with two-panel 3D cut, no padding, single-row 3-position back closure. Tests VTO on an unstructured soft-cup bralette with minimal support architecture.",
     youcamCategory: "upper_body",
+    vtoAssets: [{ colour: "膚", image: "/garments/nude-06-nude.jpg" }],
   },
   {
     id: "nude-07",
@@ -213,6 +233,7 @@ export const NUDE_PRODUCTS: Product[] = [
     structureNotes:
       "1/2 cup strapless bandeau with soft underwire, detachable dual straps, three-panel spliced cup with removable pads. Tests VTO on a tube/bandeau silhouette with no shoulder straps.",
     youcamCategory: "upper_body",
+    vtoAssets: [{ colour: "裸膚", image: "/garments/nude-07-nude.jpg" }],
   },
   {
     id: "nude-08",
@@ -240,6 +261,7 @@ export const NUDE_PRODUCTS: Product[] = [
     structureNotes:
       "Halter-style racerback with soft underwire, front deep-V closure (no back closure), 3/4 cup with removable pads and 8mm lower padding. Tests VTO on a crisscross halter strap and front-closure geometry.",
     youcamCategory: "upper_body",
+    vtoAssets: [{ colour: "裸膚", image: "/garments/nude-08-nude.jpg" }],
   },
   {
     id: "nude-09",
@@ -267,6 +289,7 @@ export const NUDE_PRODUCTS: Product[] = [
     structureNotes:
       "6-way convertible bra with soft underwire, front deep-V closure (no back closure), 5/8 cup with integrated BCD padding and 8mm lower thickness, detachable straps for strapless/halter/crisscross wear. Tests VTO on multi-config strap routing and ultra-low 5/8 cup coverage.",
     youcamCategory: "upper_body",
+    vtoAssets: [{ colour: "裸膚", image: "/garments/nude-09-nude.jpg" }],
   },
 ];
 
@@ -274,4 +297,25 @@ export const PRODUCT_COUNT = NUDE_PRODUCTS.length;
 
 export function getProductById(id: string): Product | undefined {
   return NUDE_PRODUCTS.find((p) => p.id === id);
+}
+
+/**
+ * Resolve which garment image a try-on should send, and which colourway that
+ * is. Passing no colour keeps the historical behaviour: the default reference,
+ * whose colourway is unknown.
+ */
+export function resolveGarment(
+  product: Product,
+  colour?: string | null
+): { image: string; colour: string | null } | { error: "COLOUR_NOT_RENDERABLE"; renderable: string[] } {
+  const assets = product.vtoAssets ?? [];
+  if (!colour) return { image: product.vtoImage, colour: null };
+  const hit = assets.find((a) => a.colour === colour);
+  if (!hit) return { error: "COLOUR_NOT_RENDERABLE", renderable: assets.map((a) => a.colour) };
+  return { image: hit.image, colour: hit.colour };
+}
+
+/** Colourways this piece can actually be rendered in. */
+export function renderableColours(product: Product): string[] {
+  return (product.vtoAssets ?? []).map((a) => a.colour);
 }

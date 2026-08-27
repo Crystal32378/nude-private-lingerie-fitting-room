@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, Download, Share, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
+import { PreparationNote } from "@/components/preparation-note";
 import { getProductById, type Product } from "@/lib/products";
 import {
   buildShareMessage,
@@ -185,6 +186,8 @@ export function CompareView() {
             view, so the differences can speak for themselves.
           </p>
         </div>
+
+        <PreparationNote />
 
         <div
           className={`mt-12 grid grid-cols-1 gap-x-8 gap-y-12 sm:grid-cols-2 ${
