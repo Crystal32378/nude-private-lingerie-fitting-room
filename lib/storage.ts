@@ -38,6 +38,11 @@ export interface SavedLook {
   productId: string;
   imageUrl: string;
   tryOnIsReal: boolean;
+  /**
+   * The colourway actually rendered, when it was a confirmed asset. null means
+   * the default reference was used and its colourway was never labelled.
+   */
+  renderedColour?: string | null;
   createdAt: string;
   updatedAt: string;
   /** ISO timestamp recorded when the user transcribed a friend's pick for this look. */

@@ -32,6 +32,21 @@ visitor's **own** agent can operate the fitting room. There is no NUDE chatbot
 and no NUDE stylist; the agent belongs to the person, and NUDE only publishes
 what it can do.
 
+### Why this needs a tool layer at all
+
+The data that answers *"will this show under a white shirt"* already exists on
+NUDE's own product pages — as prose, for people. Nothing exposes it as
+structure. That is not a gap in NUDE; **it is the normal state of retail.** The
+brand that built this has never had an agent-readable storefront, and neither
+has anyone it competes with.
+
+We can say what the alternative costs, because we paid it. Locating one nude
+colourway reference per piece meant crawling seven of NUDE's own product pages,
+ranking candidate images by pixel darkness to guess which was the nude one, and
+inspecting them by hand — and the top-ranked candidate for one piece turned out
+to be a photograph of its *back*. That is the best an agent can do without a
+tool layer, and it is not good enough to hand someone a fitting room.
+
 ### The principle: correctness before speed
 
 A fitting room is finished work, not a fast answer. Buying a bra in a shop
@@ -73,9 +88,9 @@ only make it guess — which is exactly the failure this layer is built to avoid
 | Tool | Read/write | What it does |
 |---|---|---|
 | `nude.list_pieces` | read-only | All nine pieces with the construction detail the catalogue grid hides — wire, cup, padding, straps, closure, material, structure notes — plus each product page URL. Explicitly labelled as a starting point, not an answer. |
-| `nude.get_piece` | read-only | One piece in full, **including the garment image a try-on will actually send to `cloth-v4`**. This is the stockroom step: it is where an agent finds out that the colour it was about to promise is not the colour that will render. |
+| `nude.get_piece` | read-only | One piece in full, **including the garment images a try-on can actually send to `cloth-v4`**, by colourway. This is the stockroom step: it is where an agent finds out which colours it can honour and which it cannot. |
 | `nude.get_fitting_room_state` | read-only | The redacted fitting room: whether a photo exists, which try-ons were generated and whether each is real, the current shortlist, any preparation already handed over. |
-| `nude.try_on` | mutating | Renders one piece onto the stored photo via `cloth-v4`. 10–30s, serialised — parallel calls are refused rather than raced. Returns a `lookId` and whether the render was real. |
+| `nude.try_on` | mutating | Renders one piece onto the stored photo via `cloth-v4`, optionally in a named colourway. 10–30s, serialised — parallel calls are refused rather than raced. A colour it cannot render is refused, never substituted. Returns a `lookId`, whether the render was real, and which colourway is now on the person. |
 | `nude.prepare_fitting_room` | mutating | The handoff, and the last step. |
 
 ### What `prepare_fitting_room` refuses
@@ -130,15 +145,22 @@ a piece of work rather than a single call:
    `nude-07 Lace Bandeau` — again from the name. Its `closure` field says
    `back (２排３段)`. Only two pieces in the nine are true front-closure.
 3. Three renders came back **black** while the brief asked for nude tones,
-   because each piece has exactly one reference garment image and for those
-   pieces it is the black colourway. Nothing was broken; the delivery was simply
-   wrong.
+   because each piece had exactly one reference garment image and for those
+   pieces it was the black colourway. Nothing was broken; the delivery was
+   simply wrong.
 
 Three fixes followed, and they are why the interface looks the way it does:
 `get_piece` exists so the render asset is visible *before* rendering;
-`list_pieces` states plainly that `colors` is a purchase list and not something
-a try-on can honour; and `caveat` exists so the honest version of point 3 has
-somewhere to go.
+`list_pieces` separates `colors` (buyable) from `coloursYouCanRender`; and
+`caveat` exists so anything that cannot be honoured has somewhere to go.
+
+Point 3 then stopped being a disclosure and became a capability. Reference
+images for the nude colourway were added for the seven pieces that are made in
+one, `nude.try_on` takes an optional `colour`, and a colour it cannot render is
+**refused rather than substituted**. Two pieces have no nude option at all —
+`nude-04` is made only in 神秘黑, `nude-05` only in greys, pinks and black — so
+"cannot render nude" is now a product fact the agent can state, not a limit of
+the tooling.
 
 No amount of validation catches a bad pick. What the interface can do is make
 the deciding fields impossible to miss and make overclaiming awkward.
@@ -168,6 +190,15 @@ nude.prepare_fitting_room {          → refuses until those renders exist
   caveat
 }
 ```
+
+### `public/garments/`
+
+Garment reference crops for the nude colourways, one per piece that is made in
+one. They are **inputs to `cloth-v4`** — the file a try-on sends when `colour`
+is specified — and nothing renders them in the UI. Cropped to the garment so
+they read as construction detail rather than photography; verified to produce
+renders indistinguishable from the full frames, at a tenth the size (304 KB for
+seven). NUDE's product photography is not covered by the MIT licence.
 
 ## Privacy & data flow
 

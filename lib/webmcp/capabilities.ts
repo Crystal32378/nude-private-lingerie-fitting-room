@@ -26,7 +26,12 @@
  * generated render *and* a stated reason for every single piece.
  */
 
-import { NUDE_PRODUCTS, PRODUCT_COUNT, getProductById } from "@/lib/products";
+import {
+  NUDE_PRODUCTS,
+  PRODUCT_COUNT,
+  getProductById,
+  renderableColours,
+} from "@/lib/products";
 import {
   COMPARE_MAX,
   COMPARE_MIN,
@@ -91,7 +96,7 @@ export function listPieces() {
     tryOn: {
       model: "Perfect Corp cloth-v4",
       colourway:
-        "Each piece has one fixed reference garment image, so a try-on renders that single colourway. `colors` lists the colourways available to buy — it is NOT a choice a try-on can honour. Do not promise the person a colour on the strength of that list. Call nude.get_piece to see the actual garment asset a render will use, and open productUrl if you need to confirm what else exists before committing.",
+        "`colors` lists what is available to BUY. `coloursYouCanRender` lists what nude.try_on can actually put on the person — pass one of those as `colour`. If a colour the person asked for is not in coloursYouCanRender for a piece, that piece is not made in it or we have no reference image for it: say so in your caveat rather than rendering something else and calling it a match. Call nude.get_piece to see the exact asset a render will use.",
     },
     workingNote:
       "This is a starting point, not an answer. Read the construction fields, drill into the plausible pieces with nude.get_piece, and only then render. Taking longer and getting it right is the expected behaviour here.",
@@ -111,6 +116,7 @@ export function listPieces() {
       straps: p.straps,
       closure: p.closure,
       structureNotes: p.structureNotes,
+      coloursYouCanRender: renderableColours(p),
       productUrl: p.productUrl,
     })),
   };
@@ -163,10 +169,16 @@ export function getPiece(input: { pieceId?: unknown }) {
       notes: p.structureNotes,
     },
     productUrl: p.productUrl,
+    coloursYouCanRender: renderableColours(p),
     garmentAssets: {
       catalogueImage: p.displayImage,
-      renderReference: p.vtoImage,
-      note: "renderReference is the single garment image nude.try_on will send to cloth-v4. Whatever colourway it shows is the colourway that will appear on the person, regardless of colorsAvailableToBuy. Look at it, or open productUrl, before you promise a colour.",
+      defaultRenderReference: {
+        image: p.vtoImage,
+        colour: null,
+        note: "Used when nude.try_on is called without a colour. Its colourway was never labelled, so do not assert one.",
+      },
+      byColour: (p.vtoAssets ?? []).map((a) => ({ colour: a.colour, image: a.image })),
+      note: "Pass one of coloursYouCanRender as `colour` to nude.try_on and that asset is what reaches cloth-v4. A colour in colorsAvailableToBuy but not in coloursYouCanRender cannot be rendered — disclose that instead of substituting.",
     },
     personalImages: PERSONAL_IMAGE,
   };
@@ -198,6 +210,7 @@ export function getFittingRoomState() {
       lookId: l.id,
       pieceId: l.productId,
       isRealTryOn: l.tryOnIsReal,
+      renderedColour: l.renderedColour ?? null,
       createdAt: l.createdAt,
       friendPickRecordedAt: l.friendPick ?? null,
       partOfPreparation: l.preparedBy?.preparationId ?? null,
@@ -216,21 +229,33 @@ export function getFittingRoomState() {
 // them so parallel agent calls cannot race on the selected piece.
 let tryOnInFlight = false;
 
-export async function tryOnPiece(input: { pieceId?: unknown }) {
+export async function tryOnPiece(input: { pieceId?: unknown; colour?: unknown }) {
   const pieceId = typeof input?.pieceId === "string" ? input.pieceId.trim() : "";
   if (!pieceId) {
     return fail("INVALID_INPUT", "pieceId is required.", false);
   }
+  const colour = typeof input?.colour === "string" ? input.colour.trim() : "";
 
   const before = useShowroomStore.getState();
   if (!before.hydrated) return NOT_HYDRATED();
 
-  if (!getProductById(pieceId)) {
+  const piece = getProductById(pieceId);
+  if (!piece) {
     return fail(
       "UNKNOWN_PIECE",
       "No such piece. Call nude.list_pieces for the nine valid pieceIds.",
       false,
       { pieceId }
+    );
+  }
+
+  const renderable = renderableColours(piece);
+  if (colour && !renderable.includes(colour)) {
+    return fail(
+      "COLOUR_NOT_RENDERABLE",
+      `This piece cannot be rendered in ${colour}. Either it is not made in that colourway or there is no reference image for it. Do not substitute another colour and present it as a match — render what is renderable and say what you could not honour.`,
+      false,
+      { pieceId, requested: colour, coloursYouCanRender: renderable, coloursAvailableToBuy: piece.colors }
     );
   }
 
@@ -258,7 +283,7 @@ export async function tryOnPiece(input: { pieceId?: unknown }) {
     // startTryOn selects the piece and shows the try-on view, so the render is
     // visible on screen and the saved look is keyed to the right piece.
     useShowroomStore.getState().startTryOn(pieceId);
-    await useShowroomStore.getState().runTryOn(pieceId);
+    await useShowroomStore.getState().runTryOn(pieceId, colour || null);
   } finally {
     tryOnInFlight = false;
   }
@@ -273,6 +298,10 @@ export async function tryOnPiece(input: { pieceId?: unknown }) {
       pieceId,
       lookId: look?.id ?? null,
       rendered: "real Perfect Corp cloth-v4 result",
+      renderedColour: look?.renderedColour ?? null,
+      colourNote: look?.renderedColour
+        ? "This is the colourway on the person now."
+        : "Rendered from the default reference, whose colourway is not labelled — do not assert a colour for this look.",
       elapsedMs,
       personalImages: PERSONAL_IMAGE,
     };

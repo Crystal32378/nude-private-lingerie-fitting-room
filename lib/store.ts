@@ -15,7 +15,7 @@ import {
   saveLooks as dbSaveLooks,
   savePersonPhoto,
 } from "./storage";
-import { getProductById } from "./products";
+import { getProductById, resolveGarment } from "./products";
 
 export type View = "showroom" | "product" | "tryon" | "my-looks" | "compare";
 
@@ -34,6 +34,8 @@ interface ShowroomState {
   tryOnImage: string | null;
   tryOnIsReal: boolean;
   tryOnError: string | null;
+  /** Colourway being rendered, or null for the unlabelled default. */
+  tryOnColour: string | null;
   looks: SavedLook[];
   hydrated: boolean;
   /** Saved-look ids chosen for side-by-side compare, in A/B/C order. */
@@ -74,7 +76,7 @@ interface ShowroomState {
    * person photo, updating try-on state and auto-saving a real result.
    * Callers own their own de-duplication.
    */
-  runTryOn: (productId: string) => Promise<void>;
+  runTryOn: (productId: string, colour?: string | null) => Promise<void>;
 
   saveCurrentLook: () => Promise<void>;
   removeLook: (id: string) => Promise<void>;
@@ -91,6 +93,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   tryOnImage: null,
   tryOnIsReal: false,
   tryOnError: null,
+  tryOnColour: null,
   looks: [],
   hydrated: false,
   compareIds: [],
@@ -238,16 +241,27 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       tryOnError: null,
     }),
 
-  runTryOn: async (productId) => {
+  runTryOn: async (productId, colour) => {
     const product = getProductById(productId);
     const person = get().personImage;
     if (!product || !person) return;
 
+    const garment = resolveGarment(product, colour);
+    if ("error" in garment) {
+      get().setTryOnError(
+        `This piece cannot be rendered in ${colour}. Renderable: ${
+          garment.renderable.join(", ") || "none"
+        }.`
+      );
+      return;
+    }
+
+    set({ tryOnColour: garment.colour });
     get().setTryOnLoading();
     try {
       const personBlob = await (await fetch(person)).blob();
       const garmentBlob = await (
-        await fetch(product.vtoImage, { mode: "cors" })
+        await fetch(garment.image, { mode: "cors" })
       ).blob();
       const form = new FormData();
       form.append("person", personBlob, "person.jpg");
@@ -301,7 +315,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   },
 
   saveCurrentLook: async () => {
-    const { selectedProductId, tryOnImage, tryOnIsReal, looks } = get();
+    const { selectedProductId, tryOnImage, tryOnIsReal, tryOnColour, looks } = get();
     if (!selectedProductId || !tryOnImage) return;
     // Keep only the latest look per product.
     const filtered = looks.filter((l) => l.productId !== selectedProductId);
@@ -311,6 +325,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       productId: selectedProductId,
       imageUrl: tryOnImage,
       tryOnIsReal,
+      renderedColour: tryOnColour,
       createdAt: now,
       updatedAt: now,
     };

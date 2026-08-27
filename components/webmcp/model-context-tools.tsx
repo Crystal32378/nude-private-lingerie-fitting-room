@@ -82,6 +82,12 @@ const tryOnInputSchema = {
         "A pieceId from nude.list_pieces, e.g. nude-01. One piece per call.",
       pattern: "^nude-[0-9]{2}$",
     },
+    colour: {
+      type: "string",
+      description:
+        "Optional. A colourway from that piece's coloursYouCanRender. Omit to use the default reference, whose colourway is unlabelled. Asking for a colour outside coloursYouCanRender is refused rather than substituted.",
+      maxLength: 32,
+    },
   },
   required: ["pieceId"],
   additionalProperties: false,
@@ -181,10 +187,10 @@ export function ModelContextTools() {
           name: "nude.try_on",
           title: "Try a piece on",
           description:
-            "Render one piece onto the photo already stored in this fitting room, using Perfect Corp's cloth-v4 virtual try-on. Takes roughly 10-30 seconds and runs one at a time. Renders the piece's one fixed reference colourway — the colours listed by nude.list_pieces are purchase options, not render options. Requires that the person has already added a photo — this tool cannot supply or replace it. Returns whether the render succeeded and its lookId, and no image data.",
+            "Render one piece onto the photo already stored in this fitting room, using Perfect Corp's cloth-v4 virtual try-on. Takes roughly 10-30 seconds and runs one at a time. Pass a colour from that piece's coloursYouCanRender to render that colourway; omit it for the unlabelled default. A colour that cannot be rendered is refused, never substituted. Requires that the person has already added a photo — this tool cannot supply or replace it. Returns whether the render succeeded and its lookId, and no image data.",
           inputSchema: tryOnInputSchema,
           annotations: { readOnlyHint: false, untrustedContentHint: true },
-          execute: (input) => tryOnPiece(input as { pieceId?: unknown }),
+          execute: (input) => tryOnPiece(input as { pieceId?: unknown; colour?: unknown }),
         },
         options
       ),
