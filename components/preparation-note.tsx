@@ -28,6 +28,16 @@ export function PreparationNote() {
         {preparation.brief}
       </p>
 
+      {/* A tester read the reasons below and concluded the agent had seen her
+          photo. It has not: the reasons come from the brief and the product data
+          the read tools return. Second sentence is the capability's own wording,
+          verbatim — no new claim. */}
+      <p className="mt-4 max-w-2xl text-[13px] leading-[1.8] tracking-[0.02em] text-muted-foreground">
+        <span className="label-editorial text-accent-deep">Why these picks — </span>
+        From your brief and the product specifications. No photo of the person and no
+        try-on result is returned through WebMCP tools.
+      </p>
+
       <ul className="mt-5 space-y-3">
         {preparation.pieces.map(({ lookId, pieceId, why }) => (
           <li key={lookId} className="max-w-2xl">

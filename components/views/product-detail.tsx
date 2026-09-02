@@ -46,11 +46,11 @@ export function ProductDetailView() {
 
   return (
     <div className="view-enter flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background sm:bg-background/85 sm:backdrop-blur-md">
         <div className="mx-auto flex h-[72px] max-w-[1500px] items-center justify-between px-5 sm:px-8 lg:px-12">
           <button
             onClick={backToShowroom}
-            className="label-editorial flex items-center gap-2.5 text-muted-foreground transition-colors hover:text-foreground"
+            className="label-editorial flex min-w-0 items-center gap-2.5 text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft size={13} strokeWidth={1.5} />
             Collection
@@ -58,7 +58,7 @@ export function ProductDetailView() {
           <Logo height={16} />
           <button
             onClick={openMyLooks}
-            className="label-editorial text-muted-foreground transition-colors hover:text-foreground"
+            className="label-editorial shrink-0 whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground"
           >
             My Looks{looksCount > 0 ? ` · ${looksCount}` : ""}
           </button>
@@ -114,32 +114,21 @@ export function ProductDetailView() {
               </dl>
             </section>
 
+            {/* Catalogue information, not controls. Boxed chips read as selectable
+                and testers tried to click them; rendered as plain text alongside
+                Construction, which is what this data is. */}
             <section className="mt-10">
-              <h2 className="label-editorial mb-4 text-muted-foreground">Colors</h2>
-              <div className="flex flex-wrap gap-2.5">
-                {product.colors.map((color) => (
-                  <span
-                    key={color}
-                    className="rounded-sm border border-border bg-secondary/60 px-4 py-2 text-[13px] tracking-[0.08em]"
-                  >
-                    {color}
-                  </span>
-                ))}
-              </div>
+              <h2 className="label-editorial mb-3 text-muted-foreground">Available colours</h2>
+              <p className="text-sm leading-[1.9] tracking-[0.03em]">
+                {product.colors.join(" · ") || "—"}
+              </p>
             </section>
 
             <section className="mt-8">
-              <h2 className="label-editorial mb-4 text-muted-foreground">Sizes</h2>
-              <div className="flex flex-wrap gap-2.5">
-                {product.sizes.map((size) => (
-                  <span
-                    key={size}
-                    className="rounded-sm border border-border bg-secondary/60 px-4 py-2 text-[13px] tracking-[0.08em] tabular-nums"
-                  >
-                    {size}
-                  </span>
-                ))}
-              </div>
+              <h2 className="label-editorial mb-3 text-muted-foreground">Available sizes</h2>
+              <p className="text-sm leading-[1.9] tracking-[0.03em] tabular-nums">
+                {product.sizes.join(" · ") || "—"}
+              </p>
             </section>
 
             <div className="mt-14 hidden flex-col items-start gap-5 sm:flex">
