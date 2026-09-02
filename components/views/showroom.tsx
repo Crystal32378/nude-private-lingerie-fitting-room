@@ -16,7 +16,7 @@ export function ShowroomView() {
 
   return (
     <div className="view-enter min-h-screen">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background sm:bg-background/85 sm:backdrop-blur-md">
         <div className="mx-auto flex h-[72px] max-w-[1500px] items-center justify-between px-5 sm:px-8 lg:px-12">
           <button
             onClick={() => useShowroomStore.getState().backToShowroom()}
@@ -31,7 +31,7 @@ export function ShowroomView() {
             </span>
             <button
               onClick={openMyLooks}
-              className="label-editorial text-muted-foreground transition-colors hover:text-foreground"
+              className="label-editorial shrink-0 whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground"
             >
               My Looks{looksCount > 0 ? ` · ${looksCount}` : ""}
             </button>

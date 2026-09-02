@@ -339,11 +339,11 @@ export function CompareView() {
 function CompareHeader() {
   const exitCompare = useShowroomStore((s) => s.exitCompare);
   return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-border/60 bg-background sm:bg-background/85 sm:backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-5 sm:px-8 lg:px-12">
         <button
           onClick={exitCompare}
-          className="label-editorial flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+          className="label-editorial flex min-w-0 items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft size={14} strokeWidth={1.5} />
           My Looks

@@ -57,19 +57,19 @@ export function TryOnView() {
 
   return (
     <div className="view-enter flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background sm:bg-background/85 sm:backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-5 sm:px-8 lg:px-12">
           <button
             onClick={backToProduct}
-            className="label-editorial flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
+            className="label-editorial flex min-w-0 items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft size={14} strokeWidth={1.5} />
-            <span className="max-w-[160px] truncate sm:max-w-none">{product.nameEn}</span>
+            <span className="max-w-[84px] truncate sm:max-w-none">{product.nameEn}</span>
           </button>
           <Logo height={18} />
           <button
             onClick={openMyLooks}
-            className="label-editorial text-muted-foreground transition-colors hover:text-foreground"
+            className="label-editorial shrink-0 whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground"
           >
             My Looks{looksCount > 0 ? ` · ${looksCount}` : ""}
           </button>
@@ -203,7 +203,8 @@ function UploadStep({
           Upload a photo to try on
         </h2>
         <p className="mx-auto mt-6 max-w-lg text-[15px] leading-[1.9] tracking-[0.02em] text-muted-foreground">
-          A clear, front-facing upper-body photo works best. Your photo is stored only in
+          A clear, front-facing half-body or full-body photo works best — include your
+          torso. A close-up selfie will not render well. Your photo is stored only in
           this browser — it is sent solely to power your virtual fitting, and NUDE never
           keeps a copy.
         </p>
@@ -236,7 +237,7 @@ function UploadStep({
               <Camera size={22} strokeWidth={1.25} className="text-muted-foreground" />
               <span className="label-editorial group-hover:text-foreground">Choose a photo</span>
               <span className="text-xs text-muted-foreground">
-                JPG or PNG · Front-facing · Good lighting
+                JPG or PNG · Half or full body · Good lighting
               </span>
             </>
           )}
@@ -244,7 +245,7 @@ function UploadStep({
 
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
-            ["Front-facing", "Stand facing the camera directly"],
+            ["Half or full body", "Include your torso — a close-up selfie will not render"],
             ["Fitted top", "Wear a fitted top for cleaner overlay"],
             ["Good light", "Even, natural lighting works best"],
           ].map(([title, desc]) => (
