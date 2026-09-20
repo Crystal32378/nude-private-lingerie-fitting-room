@@ -178,6 +178,57 @@ export interface BasketOption {
   unknowns: string[];
 }
 
+export interface BudgetScenario {
+  id: "one_set" | "three_bras" | "three_sets";
+  label: string;
+  originalTotal: number;
+  conditionalSimulation: number;
+  deltaFromOneSet: number;
+  rateLabel: string;
+}
+
+export interface BudgetComparison {
+  braId: string;
+  pantyId: string;
+  oneSet: BudgetScenario;
+  threeBras: BudgetScenario;
+  threeSets: BudgetScenario;
+  termsVerified: false;
+  validityEnd: string;
+}
+
+/**
+ * A transparent comparison for the moment after a one-set recommendation.
+ * It never changes the basket's defaultTotal and never claims checkout price;
+ * both discount figures are explicitly conditional simulations.
+ */
+export function buildBudgetComparison(basket: BasketOption): BudgetComparison | null {
+  if (!basket.pantyId || basket.lines.length !== 2 || basket.lines.some(line => line.qty !== 1)) return null;
+  const bra = basket.lines.find(line => line.id === basket.braId);
+  const panty = basket.lines.find(line => line.id === basket.pantyId);
+  if (!bra || !panty) return null;
+
+  const oneOriginal = bra.price + panty.price;
+  const oneSimulation = Math.round(oneOriginal * 0.9);
+  const threeBrasOriginal = bra.price * 3;
+  const threeBrasSimulation = Math.round(threeBrasOriginal * 0.7);
+  const threeSetsOriginal = oneOriginal * 3;
+  const threeSetsSimulation = Math.round(threeSetsOriginal * 0.5);
+
+  return {
+    braId: basket.braId,
+    pantyId: basket.pantyId,
+    oneSet: { id: "one_set", label: "一套：1 件內衣＋1 件內褲", originalTotal: oneOriginal,
+      conditionalSimulation: oneSimulation, deltaFromOneSet: 0, rateLabel: "九折" },
+    threeBras: { id: "three_bras", label: "三件內衣", originalTotal: threeBrasOriginal,
+      conditionalSimulation: threeBrasSimulation, deltaFromOneSet: threeBrasSimulation - oneSimulation, rateLabel: "七折" },
+    threeSets: { id: "three_sets", label: "三套：3 件內衣＋3 件內褲", originalTotal: threeSetsOriginal,
+      conditionalSimulation: threeSetsSimulation, deltaFromOneSet: threeSetsSimulation - oneSimulation, rateLabel: "五折" },
+    termsVerified: false,
+    validityEnd: PROMO.validityEnd,
+  };
+}
+
 /** A small, explicit set of same-style baskets. No added units, inferred sizes,
  * member price, or excluded items. Explore the full eligible corpus before cap. */
 export function buildBasketOptions(frame: SituationFrame, now = new Date()): BasketOption[] {

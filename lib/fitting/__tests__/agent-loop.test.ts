@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emptyFrame, type SituationFrame } from "../types.ts";
 import { decide, planNextAction, recommendStyles } from "../decide.ts";
-import { buildBasketOptions } from "../promotion.ts";
+import { buildBasketOptions, buildBudgetComparison } from "../promotion.ts";
 import { buildTaskRequest, parseTaskRequest, projectTradeoffState, assertHobbySafe } from "../privacy.ts";
 import { evaluateTradeoff, type JevTransport } from "../jev.ts";
 
@@ -125,6 +125,24 @@ test("basket prices and quantity come from code, not the request or JEV", async 
   const result = await evaluateTradeoff(buildTaskRequest("basket_tradeoff", f), fake);
   assert.equal(result.status, "complete");
   assert.ok(options.some(b => b.id === result.judgments[0].choice));
+});
+
+test("Tokyo one-set comparison keeps original total separate from conditional simulations", () => {
+  const f = frame({ matchingSetDesired: c(true), quantityIntent: c(1) });
+  const basket = buildBasketOptions(f).find(option => option.braId === "nude-09" && option.pantyId === "panty-02");
+  assert.ok(basket, "nude-09 must have its official p-02 partner");
+  const comparison = buildBudgetComparison(basket!);
+  assert.deepEqual(comparison && {
+    one: [comparison.oneSet.originalTotal, comparison.oneSet.conditionalSimulation, comparison.oneSet.deltaFromOneSet],
+    threeBras: [comparison.threeBras.originalTotal, comparison.threeBras.conditionalSimulation, comparison.threeBras.deltaFromOneSet],
+    threeSets: [comparison.threeSets.originalTotal, comparison.threeSets.conditionalSimulation, comparison.threeSets.deltaFromOneSet],
+    termsVerified: comparison.termsVerified,
+  }, {
+    one: [2460, 2214, 0],
+    threeBras: [5640, 3948, 1734],
+    threeSets: [7380, 3690, 1476],
+    termsVerified: false,
+  });
 });
 
 test("basket proposals never reinstate excluded bras or silently add quantity", () => {

@@ -8,7 +8,7 @@ import { getProductById } from "@/lib/products";
 import { emptyFrame, type SituationFrame, type TradeoffResult } from "@/lib/fitting/types";
 import { byField, hintsFromUtterance } from "@/lib/fitting/questions";
 import { decide, planNextAction, recommendStyles } from "@/lib/fitting/decide";
-import { buildBasketOptions } from "@/lib/fitting/promotion";
+import { buildBasketOptions, buildBudgetComparison, type BudgetComparison } from "@/lib/fitting/promotion";
 import { buildTaskRequest, projectTradeoffState, type TaskField } from "@/lib/fitting/privacy";
 import { PANTY_SIZE_CHART } from "@/lib/fitting/panties";
 
@@ -87,6 +87,8 @@ export function FittingRoomView() {
   const preferredBasket = modelPreferredBasket ?? rulePreferredBasket;
   const visibleBaskets = [...baskets].sort((a, b) => Number(b.id === preferredBasket) - Number(a.id === preferredBasket)).slice(0, 3);
   const selection = baskets.find(b => b.id === selected);
+  const comparisonBasket = selection ?? baskets[0];
+  const budgetComparison: BudgetComparison | null = comparisonBasket ? buildBudgetComparison(comparisonBasket) : null;
   const hasSet = frame.matchingSetDesired.value === true;
   const loading = pending !== null;
   const failed = styleResult?.status === "unavailable" || basketResult?.status === "unavailable";
@@ -277,6 +279,7 @@ export function FittingRoomView() {
                 {selected === basket.id ? "已保留這組" : basket.needsReview ? "保留草稿，向品牌確認" : "我想選這組"}
               </button>
             </article>)}</div>}
+          {budgetComparison && <PriceDecisionPanel comparison={budgetComparison} />}
           {selection && <div className="mt-6 border-l-2 border-primary pl-5" role="status">
             <h3 className="text-lg">已保留妳的選擇，尚未下單。</h3>
             <p className="mt-2 text-sm leading-7">{selection.needsReview ? "配套資料仍需品牌確認。" : "可以前往官方商品頁自行決定。"}商品合計 {money(selection.calculation.defaultTotal)}；庫存、運費與結帳優惠以官網確認為準。</p>
@@ -291,4 +294,52 @@ export function FittingRoomView() {
     </main>
     <footer className="border-t border-border px-5 py-8 text-center text-sm leading-7 text-muted-foreground">先懂妳的需求，再比較證據與取捨。最後，由妳決定。</footer>
   </div>;
+}
+
+function PriceDecisionPanel({ comparison }: { comparison: BudgetComparison }) {
+  const rows = [comparison.oneSet, comparison.threeBras, comparison.threeSets];
+  return <section className="mt-8 border-l-2 border-accent bg-card p-5 sm:p-7" aria-labelledby="price-decision-title">
+    <p className="text-sm text-muted-foreground">推薦後，先看金額</p>
+    <h3 id="price-decision-title" className="mt-2 text-2xl">好，這樣買要多少錢？</h3>
+    <p className="mt-3 text-sm leading-7 text-muted-foreground">
+      目前確定的是商品原價合計；活動資格尚未核定，下面的折扣只是假設活動成立時的條件式試算。
+    </p>
+    <div className="mt-6 grid gap-3 sm:grid-cols-3">
+      <div className="border border-border p-4">
+        <p className="text-xs text-muted-foreground">現在確定的商品合計</p>
+        <p className="mt-2 text-2xl">{money(comparison.oneSet.originalTotal)}</p>
+        <p className="mt-1 text-sm">一套原價</p>
+      </div>
+      <div className="border border-border p-4">
+        <p className="text-xs text-muted-foreground">活動成立時的試算</p>
+        <p className="mt-2 text-2xl">{money(comparison.oneSet.conditionalSimulation)}</p>
+        <p className="mt-1 text-sm">一套／{comparison.oneSet.rateLabel}／非結帳實付</p>
+      </div>
+      <div className="border border-border p-4">
+        <p className="text-xs text-muted-foreground">如果改買三套</p>
+        <p className="mt-2 text-2xl">{money(comparison.threeSets.conditionalSimulation)}</p>
+        <p className="mt-1 text-sm">比一套多 {money(comparison.threeSets.deltaFromOneSet)}</p>
+      </div>
+    </div>
+    <div className="mt-6 overflow-x-auto">
+      <table className="w-full min-w-[620px] border-collapse text-left text-sm">
+        <caption className="sr-only">一套、三件內衣、三套的原價與活動條件式試算</caption>
+        <thead><tr className="border-b border-border text-muted-foreground">
+          <th className="py-3 pr-4 font-normal">方案</th>
+          <th className="px-4 py-3 font-normal">原價</th>
+          <th className="px-4 py-3 font-normal">活動條件式試算</th>
+          <th className="py-3 pl-4 font-normal">與一套相比</th>
+        </tr></thead>
+        <tbody>{rows.map(row => <tr key={row.id} className="border-b border-border last:border-0">
+          <th className="py-3 pr-4 font-normal">{row.label}</th>
+          <td className="px-4 py-3">{money(row.originalTotal)}</td>
+          <td className="px-4 py-3">{money(row.conditionalSimulation)}（{row.rateLabel}）</td>
+          <td className="py-3 pl-4">{row.deltaFromOneSet === 0 ? "基準" : `多 ${money(row.deltaFromOneSet)}`}</td>
+        </tr>)}</tbody>
+      </table>
+    </div>
+    <p className="mt-5 text-sm leading-7 text-muted-foreground">
+      三套可能讓單套平均成本下降，但會多花 {money(comparison.threeSets.deltaFromOneSet)}。預算上限不是最低消費；花得比預期少是好結果。要不要買三套，由妳決定。
+    </p>
+  </section>;
 }
