@@ -19,6 +19,8 @@ export interface GateVerdict {
 }
 
 const isFrontClosure = (p: Product) => p.closure.startsWith("front");
+/** No closure at all: nothing to reach behind the back for. */
+const isPullOn = (p: Product) => p.closure.startsWith("none");
 const hasNude = (p: Product) => p.colors.some((c) => /裸|膚/.test(c));
 
 /**
@@ -27,7 +29,12 @@ const hasNude = (p: Product) => p.colors.some((c) => /裸|膚/.test(c));
  * 2026-09-20. Whether that rules it out is the USER's to answer, so this returns
  * a question, never an exclusion. v3 §五 / §14.3.
  */
-const REQUIRES_PASS_OVER_HEAD = new Set(["nude-08"]);
+/**
+ * nude-10 has no closure and is put on by pulling it on (site: 「無背扣，可直接套上」).
+ * Whether she can get it over her head is hers to answer, so like nude-08 it is a
+ * question, never an exclusion.
+ */
+const REQUIRES_PASS_OVER_HEAD = new Set(["nude-08", "nude-10"]);
 
 export function gateBra(p: Product, f: SituationFrame): GateVerdict {
   const blockers: GateVerdict["blockers"] = [];
@@ -38,7 +45,7 @@ export function gateBra(p: Product, f: SituationFrame): GateVerdict {
     blockers.push({ field: "colors", text: `沒有裸色（${p.colors.join("、")}）` });
   }
 
-  if (binds(f.canReachBackClosure) && f.canReachBackClosure.value === false && !isFrontClosure(p)) {
+  if (binds(f.canReachBackClosure) && f.canReachBackClosure.value === false && !isFrontClosure(p) && !isPullOn(p)) {
     const canRotate = binds(f.canRotateBandAroundTorso) && f.canRotateBandAroundTorso.value === true;
     if (!canRotate) {
       blockers.push({ field: "closure", text: `背扣（${p.closure}）` });

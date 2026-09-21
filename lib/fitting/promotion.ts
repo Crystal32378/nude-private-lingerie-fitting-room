@@ -30,8 +30,8 @@ export const PROMO = {
    *  price, never a claimed checkout payment. */
   termsVerified: true,
   sourceUrl: "https://www.nude4underwear.com/promotions/6a28e5b90ac3867ee4dd42e4",
-  /** Corpus items that appear in the official 指定商品 list (read 2026-09-21). */
-  eligibleIds: ["nude-01", "nude-02", "nude-03", "nude-04", "nude-05", "nude-06", "nude-07", "nude-08", "nude-09",
+  /** Corpus items that appear in the official 指定商品 list (read 2026-09-21; nude-10 confirmed on the list the same day). */
+  eligibleIds: ["nude-01", "nude-02", "nude-03", "nude-04", "nude-05", "nude-06", "nude-07", "nude-08", "nude-09", "nude-10",
     "panty-01", "panty-02", "panty-03", "panty-04", "panty-05", "panty-06", "panty-07", "panty-08"],
   tiers: [
     { id: "tier_5_50", minItems: 5, rate: 0.5 },
