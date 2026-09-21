@@ -142,13 +142,14 @@ export const byField = (f: keyof SituationFrame) => QUESTIONS.find((q) => q.fiel
  */
 export function hintsFromUtterance(text: string): string[] {
   const hit: string[] = [];
-  const has = (...ws: string[]) => ws.some((w) => text.includes(w));
-  if (has("背扣", "扣不到", "手不容易舉", "舉不高", "肩膀")) hit.push("q_back", "q_rotate");
-  if (has("舉高", "舉不高", "抬手", "肩膀")) hit.push("q_overhead");
-  if (has("白襯衫", "襯衫", "不露痕", "痕跡", "透")) hit.push("q_garment", "q_nude");
-  if (has("出差", "旅行", "東京", "出國")) hit.push("q_duration", "q_days", "q_date", "q_receive");
+  const lower = text.toLowerCase();
+  const has = (...ws: string[]) => ws.some((w) => lower.includes(w));
+  if (has("背扣", "扣不到", "手不容易舉", "舉不高", "肩膀", "back clasp", "back hook", "shoulder")) hit.push("q_back", "q_rotate");
+  if (has("舉高", "舉不高", "抬手", "肩膀", "overhead", "raise my arm", "shoulder")) hit.push("q_overhead");
+  if (has("白襯衫", "襯衫", "不露痕", "痕跡", "透", "shirt", "blouse", "show through", "visible line")) hit.push("q_garment", "q_nude");
+  if (has("出差", "旅行", "東京", "出國", "business trip", "travel", "tokyo")) hit.push("q_duration", "q_days", "q_date", "q_receive");
   if (has("預算", "元", "NT", "$")) hit.push("q_budget");
-  if (has("成套", "內褲", "一套")) hit.push("q_set", "q_size");
+  if (has("成套", "內褲", "一套", "matching", "brief", "panty", "set")) hit.push("q_set", "q_size");
   return [...new Set(hit)];
 }
 
@@ -158,5 +159,7 @@ export function hintsFromUtterance(text: string): string[] {
  * unlocks a conditional wording hint; it never changes quantity or the basket.
  */
 export function mentionsDailyRotation(text: string): boolean {
-  return ["日常", "每天", "每日", "天天", "常備", "替換", "換洗", "輪替", "輪流穿"].some((w) => text.includes(w));
+  const lower = text.toLowerCase();
+  return ["日常", "每天", "每日", "天天", "常備", "替換", "換洗", "輪替", "輪流穿",
+    "everyday", "every day", "daily", "rotation"].some((w) => lower.includes(w));
 }
