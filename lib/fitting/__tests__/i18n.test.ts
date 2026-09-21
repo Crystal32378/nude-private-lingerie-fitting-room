@@ -70,3 +70,14 @@ test("English text also triggers the same local hints; 'rotate' alone is not a d
   assert.equal(mentionsDailyRotation("I want something for everyday rotation"), true);
   assert.equal(mentionsDailyRotation("I can rotate the band to the back"), false);
 });
+
+test("every bra and brief has an English display name; 中文 keeps the original", async () => {
+  const { productName } = await import("../i18n.ts");
+  const { NUDE_PRODUCTS } = await import("../../products.ts");
+  const { PANTIES } = await import("../panties.ts");
+  for (const item of [...NUDE_PRODUCTS, ...PANTIES]) {
+    assert.ok(!CJK.test(productName(item.id, "en")), item.id);
+    assert.equal(productName(item.id, "zh"), item.nameZh);
+  }
+  for (const basket of buildBasketOptions(tokyo)) for (const line of basket.lines) assert.ok(!CJK.test(productName(line.id, "en", line.name)), line.id);
+});

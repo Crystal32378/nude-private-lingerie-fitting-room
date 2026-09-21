@@ -5,8 +5,17 @@
  * official promotion terms stay as the brand publishes them.
  */
 import type { Question } from "./questions.ts";
+import { getProductById } from "../products.ts";
+import { getPanty } from "./panties.ts";
 
 export type Lang = "en" | "zh";
+
+/** Display name for any bra or brief id; data lives with the product, not here. */
+export function productName(id: string, lang: Lang, fallback = id): string {
+  const item = getProductById(id) ?? getPanty(id);
+  if (!item) return fallback;
+  return lang === "en" ? `NUDE ${item.nameEn}` : item.nameZh;
+}
 
 type QText = { ask: string; why?: string; choices: Record<string, string> };
 

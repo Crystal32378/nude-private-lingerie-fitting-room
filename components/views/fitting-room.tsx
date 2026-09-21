@@ -7,7 +7,7 @@ import { Logo } from "@/components/logo";
 import { getProductById } from "@/lib/products";
 import { emptyFrame, type SituationFrame, type TradeoffResult } from "@/lib/fitting/types";
 import { byField, byId, hintsFromUtterance, mentionsDailyRotation } from "@/lib/fitting/questions";
-import { askText, CHOICE_LABEL, choiceText, noteText, reasonText, UI, whyText, type Lang } from "@/lib/fitting/i18n";
+import { askText, productName, CHOICE_LABEL, choiceText, noteText, reasonText, UI, whyText, type Lang } from "@/lib/fitting/i18n";
 import { decide, planNextAction, recommendStyles } from "@/lib/fitting/decide";
 import { buildBasketOptions, buildBudgetComparison, type BudgetComparison } from "@/lib/fitting/promotion";
 import { buildTaskRequest, projectTradeoffState, type TaskField } from "@/lib/fitting/privacy";
@@ -226,11 +226,11 @@ export function FittingRoomView() {
               const judgment = styleResult?.judgments.find(j => j.targetId === product.id);
               return <article key={product.id} className="min-w-0">
                 <div className="relative aspect-[4/5] overflow-hidden bg-secondary">
-                  <Image src={product.displayImage} alt={product.nameZh} fill sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw" className="object-cover" />
+                  <Image src={product.displayImage} alt={productName(product.id, lang)} fill sizes="(max-width: 640px) 90vw, (max-width: 1024px) 45vw, 30vw" className="object-cover" />
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">{t.photoNote}</p>
                 <p className="mt-4 text-sm text-muted-foreground">{item.bucket === "check_with_you" ? t.needsCheck : judgment ? judgment.status === "judged" ? choiceLabel[judgment.choice] ?? choiceLabel.insufficient_evidence : choiceLabel.insufficient_evidence : t.fitsConfirmed}</p>
-                <h3 className="mt-2 text-lg leading-7">{product.nameZh}</h3>
+                <h3 className="mt-2 text-lg leading-7">{productName(product.id, lang)}</h3>
                 <p className="mt-2 text-sm">{money(product.price)} <span className="text-muted-foreground">{t.perItem}</span></p>
                 <ul className="mt-3 space-y-1 text-sm leading-6 text-muted-foreground">
                   {item.reasons.filter(r => r.field !== "price").slice(0, 2).map(reason => <li key={reason.field}>{reasonText(reason, lang)}</li>)}
@@ -250,7 +250,7 @@ export function FittingRoomView() {
           </div>
           {excluded.length > 0 && <details className="mt-8 border-t border-border pt-4 text-sm">
             <summary className="cursor-pointer py-2">{t.whyExcluded}</summary>
-            {excluded.map(item => <p key={item.productId} className="my-3 leading-6"><span>{getProductById(item.productId)?.nameZh}{lang === "en" ? ": " : "："}</span>{item.reasons.map(r => reasonText(r, lang)).join(lang === "en" ? "; " : "；")}</p>)}
+            {excluded.map(item => <p key={item.productId} className="my-3 leading-6"><span>{productName(item.productId, lang)}{lang === "en" ? ": " : "："}</span>{item.reasons.map(r => reasonText(r, lang)).join(lang === "en" ? "; " : "；")}</p>)}
           </details>}
           <p className="mt-5 text-sm leading-6 text-muted-foreground">{t.seamlessNote}</p>
         </section>
@@ -262,7 +262,7 @@ export function FittingRoomView() {
             <summary className="cursor-pointer py-2 underline underline-offset-4">{t.basketDist}</summary>
             <p className="my-2 text-xs leading-5 text-muted-foreground">{t.basketDistNote}{!preferredBasket ? t.basketUndecided : ""}</p>
             {Object.entries(basketResult.judgments[0]?.probabilities ?? {}).map(([id, probability]) => <p key={id} className="py-1 leading-6">
-              {id === "insufficient_evidence" ? t.insufficient : baskets.find(b => b.id === id)?.lines.map(l => `${l.name} × ${l.qty}`).join(" ＋ ") ?? t.candidate}{lang === "en" ? ": " : "："}{Math.round(probability * 100)}%
+              {id === "insufficient_evidence" ? t.insufficient : baskets.find(b => b.id === id)?.lines.map(l => `${productName(l.id, lang, l.name)} × ${l.qty}`).join(lang === "en" ? " + " : " ＋ ") ?? t.candidate}{lang === "en" ? ": " : "："}{Math.round(probability * 100)}%
             </p>)}
           </details>}
           {baskets.length === 0 ? <p className="mt-6 border border-border bg-card p-5 leading-7">{t.noBasket}</p>
@@ -270,7 +270,7 @@ export function FittingRoomView() {
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-xl">
                   <p className="text-sm text-muted-foreground">{basket.needsReview ? t.draftSet : basket.id === preferredBasket ? modelPreferredBasket ? t.jevSuggests : t.ruleAgrees : basket.id === baskets[0].id ? t.lowest : t.another}</p>
-                  <h3 className="mt-2 text-lg leading-7">{basket.lines.map(line => `${line.name} × ${line.qty}`).join(" ＋ ")}</h3>
+                  <h3 className="mt-2 text-lg leading-7">{basket.lines.map(line => `${productName(line.id, lang, line.name)} × ${line.qty}`).join(lang === "en" ? " + " : " ＋ ")}</h3>
                 </div>
                 <div><p className="text-xl">{money(basket.calculation.defaultTotal)}</p><p className="mt-1 text-xs text-muted-foreground">{basket.calculation.savings > 0 ? t.activityWas(basket.calculation.preDiscountTotal) : t.setTotal}{t.shippingLater}</p></div>
               </div>
