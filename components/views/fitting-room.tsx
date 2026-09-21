@@ -242,6 +242,7 @@ export function FittingRoomView() {
                   {judgment ? <>
                     <p className="my-2 text-xs leading-5 text-muted-foreground">{t.distNote}</p>
                     {Object.entries(judgment.probabilities).map(([key, value]) => <div key={key} className="flex justify-between gap-3 py-1"><span>{choiceLabel[key] ?? choiceLabel.insufficient_evidence}</span><span>{Math.round(value * 100)}%</span></div>)}
+                    {styleResult?.provenance?.receiptId && <p className="mt-2 break-all text-xs text-muted-foreground">{t.receipt(styleResult.provenance.receiptId, styleResult.provenance.returnedModel)}</p>}
                   </> : <p className="my-2 text-xs leading-5 text-muted-foreground">{loading ? t.jevPending : t.jevNone}</p>}
                 </details>}
                 <a className="mt-4 inline-block min-h-11 py-3 text-sm underline underline-offset-4" href={product.productUrl} target="_blank" rel="noreferrer">{t.viewProduct}</a>
@@ -264,6 +265,7 @@ export function FittingRoomView() {
             {Object.entries(basketResult.judgments[0]?.probabilities ?? {}).map(([id, probability]) => <p key={id} className="py-1 leading-6">
               {id === "insufficient_evidence" ? t.insufficient : baskets.find(b => b.id === id)?.lines.map(l => `${productName(l.id, lang, l.name)} × ${l.qty}`).join(lang === "en" ? " + " : " ＋ ") ?? t.candidate}{lang === "en" ? ": " : "："}{Math.round(probability * 100)}%
             </p>)}
+            {basketResult.provenance?.receiptId && <p className="mt-1 break-all text-xs text-muted-foreground">{t.receipt(basketResult.provenance.receiptId, basketResult.provenance.returnedModel)}</p>}
           </details>}
           {baskets.length === 0 ? <p className="mt-6 border border-border bg-card p-5 leading-7">{t.noBasket}</p>
             : <div className="mt-6 space-y-4">{visibleBaskets.map(basket => <article key={basket.id} className="border border-border bg-card p-5 sm:p-6">

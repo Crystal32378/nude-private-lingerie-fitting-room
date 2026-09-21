@@ -1,5 +1,5 @@
-import { createGatewayTransport, evaluateTradeoff, GatewayAuthError, type JevTransport } from "../../../../lib/fitting/jev.ts";
-import { resolveGatewayCredential, type TokenSource } from "../../../../lib/fitting/gateway-credential.ts";
+import { createGatewayTransport, createTypesafeTransport, evaluateTradeoff, GatewayAuthError, type JevTransport } from "../../../../lib/fitting/jev.ts";
+import { resolveGatewayCredential, resolveTypesafeCredential, selectJevProvider, type CredentialSource } from "../../../../lib/fitting/gateway-credential.ts";
 import { parseTaskRequest, PrivacyViolationError } from "../../../../lib/fitting/privacy.ts";
 
 export const runtime = "nodejs";
@@ -31,14 +31,22 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "invalid_confirmed_fields" }, { status: 400, headers });
   }
 
-  // The short-lived OIDC token is resolved here, inside this request, and only if a
-  // judgment is actually needed. Only its source label is ever logged or returned.
-  const seen: { source: TokenSource | null; authFailed: boolean } = { source: null, authFailed: false };
-  const base = createGatewayTransport(async () => {
-    const credential = await resolveGatewayCredential();
-    seen.source = credential.source;
-    return credential.token;
-  });
+  // The credential is resolved here, inside this request, and only if a judgment is
+  // actually needed: the brand's TypeSafe key when configured, otherwise the
+  // short-lived Vercel OIDC token for the AI Gateway. Only labels are exposed.
+  const provider = selectJevProvider();
+  const seen: { source: CredentialSource | null; authFailed: boolean } = { source: null, authFailed: false };
+  const base = provider === "typesafe"
+    ? createTypesafeTransport(async () => {
+      const credential = resolveTypesafeCredential();
+      seen.source = credential.source;
+      return credential.token;
+    })
+    : createGatewayTransport(async () => {
+      const credential = await resolveGatewayCredential();
+      seen.source = credential.source;
+      return credential.token;
+    });
   const transport: JevTransport = async (body, signal) => {
     try { return await base(body, signal); }
     catch (error) { if (error instanceof GatewayAuthError) seen.authFailed = true; throw error; }
@@ -47,7 +55,13 @@ export async function POST(request: Request): Promise<Response> {
   const outcome = result.status !== "unavailable" ? result.status : seen.authFailed ? "auth_unavailable" : "judgment_unavailable";
   if (seen.source) {
     headers["X-JEV-Token-Source"] = seen.source;
-    console.info(JSON.stringify({ route: "fitting/judge", tokenSource: seen.source, outcome }));
+    headers["X-JEV-Transport"] = provider === "typesafe" ? "typesafe-system-one" : "vercel-ai-gateway";
+    // Audit line: identifiers, hashes and counts only — no request state, answers or credential.
+    const p = result.provenance;
+    console.info(JSON.stringify({ route: "fitting/judge", task: result.task, tokenSource: seen.source, outcome,
+      transport: headers["X-JEV-Transport"], receiptId: p?.receiptId, returnedModel: p?.returnedModel,
+      upstreamRequestId: p?.upstreamRequestId, resultHash: p?.resultHash, latencyMs: p?.latencyMs,
+      inputTokens: result.usage?.inputTokens, outputTokens: result.usage?.outputTokens }));
   }
   if (result.status === "unavailable") {
     return Response.json({ error: outcome, ...(seen.source ? { tokenSource: seen.source } : {}) }, { status: 503, headers });

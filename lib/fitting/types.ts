@@ -113,6 +113,17 @@ export interface JudgmentProvenance {
   evaluatedAt: string;
   /** Gateway does not expose it. Never guess. v3 §13.6 */
   upstreamModelVersion: "unknown";
+  /** Audit receipt for the tradeoff tasks. Identifiers and hashes only — never the
+   *  request state, the user's answers, or a credential. */
+  receiptId?: string;
+  transport?: "vercel-ai-gateway" | "typesafe-system-one";
+  /** Model id exactly as the provider returned it (e.g. "jev-1.13.0"). */
+  returnedModel?: string;
+  /** Provider request id (x-typesafe-request-id / gateway generation id), if any. */
+  upstreamRequestId?: string | null;
+  /** First 16 hex chars of sha256 over the returned judgments. */
+  resultHash?: string;
+  latencyMs?: number;
 }
 
 export interface Judgment {
