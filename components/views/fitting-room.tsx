@@ -257,7 +257,7 @@ export function FittingRoomView() {
 
         <section className="mt-12 border-t border-border pt-8" aria-labelledby="basket-title">
           <h2 id="basket-title" className="text-2xl">怎麼組合，符合妳這次的需要</h2>
-          <p className="mt-3 text-sm leading-7 text-muted-foreground">以妳確認的 {frame.quantityIntent.value} {hasSet ? "套" : "件內衣"} 計算，已套用官網公開的夏季採購折扣（一件9折、三件7折、五件5折，至 2026-10-15）。會員、信用卡、點數等優惠可能在結帳時再疊加，實付以官網購物車為準。</p>
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">以妳確認的 {frame.quantityIntent.value} {hasSet ? "套" : "件內衣"} 計算，已套用官網公開的夏季採購折扣（一件9折、三件7折、五件5折，至 2026/10/16 08:00）。會員、信用卡、點數等優惠可能在結帳時再疊加，實付以官網購物車為準。</p>
           {basketResult?.status === "complete" && <details className="mt-4 text-sm">
             <summary className="cursor-pointer py-2 underline underline-offset-4">查看組合判斷分布</summary>
             <p className="my-2 text-xs leading-5 text-muted-foreground">Prototype judgment：比較已確認需求的取捨，不是省錢或合適程度的保證。{!preferredBasket ? "目前還無法判定哪組更符合偏好。" : ""}</p>
@@ -278,7 +278,7 @@ export function FittingRoomView() {
               <details className="mt-3 text-sm">
                 <summary className="cursor-pointer py-2 underline underline-offset-4">價格與活動依據</summary>
                 <p className="leading-6 text-muted-foreground">原價合計 {money(basket.calculation.preDiscountTotal)}。指定商品 {basket.calculation.eligibleItemCount} 件，套用{TIER_LABEL[basket.calculation.appliedTier]}，官網活動價 {money(basket.calculation.finalTotal)}。</p>
-                <p className="mt-2 leading-6 text-muted-foreground">依官網公開活動頁（記錄日期 2026-09-21），活動至 2026-10-15（台北時間），非即時查詢。會員、信用卡、點數等優惠需登入官網或於結帳時確認。</p>
+                <p className="mt-2 leading-6 text-muted-foreground">依官網公開活動頁（記錄日期 2026-09-21），優惠至 2026/10/16 08:00 截止（台北時間），非即時查詢。會員、信用卡、點數等優惠需登入官網或於結帳時確認。</p>
               </details>
               <button className={`${secondary} mt-4`} onClick={() => setSelected(basket.id)} aria-pressed={selected === basket.id}>
                 {selected === basket.id ? "已保留這組" : basket.needsReview ? "保留草稿，向品牌確認" : "我想選這組"}
@@ -297,7 +297,7 @@ export function FittingRoomView() {
         </section>
       </>}
     </main>
-    <footer className="border-t border-border px-5 py-8 text-center text-sm leading-7 text-muted-foreground">先懂妳的需求，再比較證據與取捨。最後，由妳決定。</footer>
+    <footer className="border-t border-border px-5 py-8 text-center text-sm leading-7 text-muted-foreground">先懂妳的需求，再比較商品內容，提供方案取捨。最後，由妳決定。</footer>
   </div>;
 }
 

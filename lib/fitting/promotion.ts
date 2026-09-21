@@ -17,9 +17,9 @@ import { runGates } from "./gates.ts";
 import { type SituationFrame } from "./types.ts";
 
 export const PROMO = {
-  /** Ours, and the one that governs. Earlier than the site's, deliberately. */
-  validityEnd: "2026-10-15T23:59:59+08:00",
-  /** What the site actually showed on 2026-09-20. Recorded, never used in maths. */
+  /** Verbatim from the official page: 「優惠至 2026/10/16 08:00 截止」(Taipei). Governs. */
+  validityEnd: "2026-10-16T08:00:00+08:00",
+  /** Same instant as shown on the site (2026-09-20 and 2026-09-21). Kept for provenance. */
   observedSiteEnd: "2026-10-16T08:00:00+08:00",
   evidenceLabel: "recorded" as const,
   evidenceTimestamp: "2026-09-20T00:00:00+08:00",
@@ -73,7 +73,8 @@ export function promotionEligibility(id: string): "yes" | "unknown" {
 }
 
 export function isCampaignLive(now: Date): boolean {
-  return now.getTime() <= new Date(PROMO.validityEnd).getTime();
+  // 「08:00 截止」: live strictly before the cut-off instant.
+  return now.getTime() < new Date(PROMO.validityEnd).getTime();
 }
 
 /**

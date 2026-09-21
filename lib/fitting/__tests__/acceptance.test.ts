@@ -317,12 +317,12 @@ test("AT-13 after the campaign ends no tier is applied", () => {
   assert.ok(after.notes.some(n => n.includes("活動已結束")));
 });
 
-test("AT-13-2 our earlier end date governs, the site's later one is observation only", () => {
-  assert.equal(PROMO.validityEnd, "2026-10-15T23:59:59+08:00");
-  assert.equal(PROMO.observedSiteEnd, "2026-10-16T08:00:00+08:00");
-  const between = new Date("2026-10-16T03:00:00+08:00");
-  const c = calculate([{ id: "a", name: "a", price: 1880, promotionEligible: "yes", qty: 3 }], between);
-  assert.equal(c.appliedTier, "none", "we stop claiming before the site stops giving");
+test("AT-13-2 the end matches the site verbatim: 2026/10/16 08:00 截止 (Taipei)", () => {
+  assert.equal(PROMO.validityEnd, "2026-10-16T08:00:00+08:00");
+  assert.equal(PROMO.validityEnd, PROMO.observedSiteEnd);
+  const line: BasketLine[] = [{ id: "a", name: "a", price: 1880, promotionEligible: "yes", qty: 3 }];
+  assert.equal(calculate(line, new Date("2026-10-16T07:59:59+08:00")).appliedTier, "tier_3_70");
+  assert.equal(calculate(line, new Date("2026-10-16T08:00:00+08:00")).appliedTier, "none", "08:00 is the cut-off");
 });
 
 // ───────────────────────────────── AT-14 · the reason for asking is the reason for acting
