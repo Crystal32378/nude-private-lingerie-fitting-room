@@ -151,3 +151,12 @@ export function hintsFromUtterance(text: string): string[] {
   if (has("成套", "內褲", "一套")) hit.push("q_set", "q_size");
   return [...new Set(hit)];
 }
+
+/**
+ * Client-side only, same boundary as hintsFromUtterance: the text is never sent.
+ * True only when she already said this is an everyday / rotation need. It only
+ * unlocks a conditional wording hint; it never changes quantity or the basket.
+ */
+export function mentionsDailyRotation(text: string): boolean {
+  return ["日常", "每天", "每日", "天天", "常備", "替換", "換洗", "輪替", "輪流穿"].some((w) => text.includes(w));
+}

@@ -5,6 +5,7 @@ import { decide, planNextAction, recommendStyles } from "../decide.ts";
 import { buildBasketOptions, buildBudgetComparison } from "../promotion.ts";
 import { buildTaskRequest, parseTaskRequest, projectTradeoffState, assertHobbySafe } from "../privacy.ts";
 import { evaluateTradeoff, type JevTransport } from "../jev.ts";
+import { mentionsDailyRotation } from "../questions.ts";
 
 const c = <T>(value: T) => ({ value, provenance: "confirmed" as const });
 function frame(patch: Partial<SituationFrame> = {}): SituationFrame {
@@ -143,6 +144,17 @@ test("Tokyo one-set comparison keeps original total separate from conditional si
     threeSets: [7380, 3690, 1476],
     termsVerified: false,
   });
+  // Average per set is derived from the conditional simulation only; the basket itself is unchanged.
+  assert.equal(comparison!.threeSetsConditionalAveragePerSet, 1230);
+  assert.equal(basket!.calculation.defaultTotal, 2460);
+  assert.deepEqual(basket!.lines.map(line => line.qty), [1, 1]);
+});
+
+test("daily-rotation wording hint needs her own words and never touches the task request", () => {
+  assert.equal(mentionsDailyRotation("下週去東京出差穿白襯衫，想搭配一套"), false);
+  assert.equal(mentionsDailyRotation("想要日常替換用的"), true);
+  const request = JSON.stringify(buildTaskRequest("basket_tradeoff", frame({ matchingSetDesired: c(true), quantityIntent: c(1) })));
+  assert.ok(!request.includes("日常") && !request.includes("替換"));
 });
 
 test("basket proposals never reinstate excluded bras or silently add quantity", () => {

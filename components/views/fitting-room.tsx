@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { getProductById } from "@/lib/products";
 import { emptyFrame, type SituationFrame, type TradeoffResult } from "@/lib/fitting/types";
-import { byField, hintsFromUtterance } from "@/lib/fitting/questions";
+import { byField, hintsFromUtterance, mentionsDailyRotation } from "@/lib/fitting/questions";
 import { decide, planNextAction, recommendStyles } from "@/lib/fitting/decide";
 import { buildBasketOptions, buildBudgetComparison, type BudgetComparison } from "@/lib/fitting/promotion";
 import { buildTaskRequest, projectTradeoffState, type TaskField } from "@/lib/fitting/privacy";
@@ -234,10 +234,19 @@ export function FittingRoomView() {
                 </ul>
                 {item.openQuestion && <p className="mt-3 text-sm leading-6">{item.openQuestion.ask}</p>}
                 {item.uncertain.map(note => <p key={note} className="mt-3 text-sm leading-6">{note}</p>)}
-                {judgment && <details className="mt-4 text-sm">
+                {item.bucket !== "check_with_you" && <details open className="mt-4 border-t border-border pt-3 text-sm">
                   <summary className="cursor-pointer underline underline-offset-4">查看判斷分布</summary>
-                  <p className="my-2 text-xs leading-5 text-muted-foreground">Prototype judgment：這是選項分布，不是穿著合適率。</p>
-                  {Object.entries(judgment.probabilities).map(([key, value]) => <div key={key} className="flex justify-between gap-3 py-1"><span>{CHOICES[key]}</span><span>{Math.round(value * 100)}%</span></div>)}
+                  {judgment ? <>
+                    <p className="my-2 text-xs leading-5 text-muted-foreground">JEV 的判斷資料（Prototype judgment）：這是選項分布，不是穿著合適率，也不改動價格、顏色、扣法或預算。</p>
+                    <div className="flex justify-between gap-3 py-1"><span>JEV 原始選擇</span><span className="text-right">{CHOICES[judgment.choice] ?? "取捨仍待確認"}</span></div>
+                    <div className="flex justify-between gap-3 py-1"><span>confidence</span><span>{typeof judgment.confidence === "number" ? `${Math.round(judgment.confidence * 100)}%` : "未提供"}</span></div>
+                    {Object.entries(judgment.probabilities).map(([key, value]) => <div key={key} className="flex justify-between gap-3 py-1 text-muted-foreground"><span>{CHOICES[key]}</span><span>{Math.round(value * 100)}%</span></div>)}
+                    <p className="mt-2 border-t border-border pt-2 leading-6">Agent 是否採用：{judgment.status === "judged"
+                      ? "採用，作為排序參考"
+                      : "未採用（信心不足或證據不足），不視為推薦"}</p>
+                  </> : <p className="my-2 text-xs leading-5 text-muted-foreground">
+                    {loading ? "JEV 判斷中；商品事實與價格仍由程式核對。" : "JEV 這次沒有提供判斷，未採用任何模型結果；此款依已確認條件列出。"}
+                  </p>}
                 </details>}
                 <a className="mt-4 inline-block min-h-11 py-3 text-sm underline underline-offset-4" href={product.productUrl} target="_blank" rel="noreferrer">查看官方商品</a>
               </article>;
@@ -279,7 +288,7 @@ export function FittingRoomView() {
                 {selected === basket.id ? "已保留這組" : basket.needsReview ? "保留草稿，向品牌確認" : "我想選這組"}
               </button>
             </article>)}</div>}
-          {budgetComparison && <PriceDecisionPanel comparison={budgetComparison} />}
+          {budgetComparison && <PriceDecisionPanel comparison={budgetComparison} dailyNeed={mentionsDailyRotation(utterance)} />}
           {selection && <div className="mt-6 border-l-2 border-primary pl-5" role="status">
             <h3 className="text-lg">已保留妳的選擇，尚未下單。</h3>
             <p className="mt-2 text-sm leading-7">{selection.needsReview ? "配套資料仍需品牌確認。" : "可以前往官方商品頁自行決定。"}商品合計 {money(selection.calculation.defaultTotal)}；庫存、運費與結帳優惠以官網確認為準。</p>
@@ -296,7 +305,7 @@ export function FittingRoomView() {
   </div>;
 }
 
-function PriceDecisionPanel({ comparison }: { comparison: BudgetComparison }) {
+function PriceDecisionPanel({ comparison, dailyNeed }: { comparison: BudgetComparison; dailyNeed: boolean }) {
   const rows = [comparison.oneSet, comparison.threeBras, comparison.threeSets];
   return <section className="mt-8 border-l-2 border-accent bg-card p-5 sm:p-7" aria-labelledby="price-decision-title">
     <p className="text-sm text-muted-foreground">推薦後，先看金額</p>
@@ -318,6 +327,7 @@ function PriceDecisionPanel({ comparison }: { comparison: BudgetComparison }) {
       <div className="border border-border p-4">
         <p className="text-xs text-muted-foreground">如果改買三套</p>
         <p className="mt-2 text-2xl">{money(comparison.threeSets.conditionalSimulation)}</p>
+        <p className="mt-1 text-sm">平均每套 {money(comparison.threeSetsConditionalAveragePerSet)}（活動成立時）</p>
         <p className="mt-1 text-sm">比一套多 {money(comparison.threeSets.deltaFromOneSet)}</p>
       </div>
     </div>
@@ -341,5 +351,8 @@ function PriceDecisionPanel({ comparison }: { comparison: BudgetComparison }) {
     <p className="mt-5 text-sm leading-7 text-muted-foreground">
       三套可能讓單套平均成本下降，但會多花 {money(comparison.threeSets.deltaFromOneSet)}。預算上限不是最低消費；花得比預期少是好結果。要不要買三套，由妳決定。
     </p>
+    {dailyNeed && <p className="mt-3 text-sm leading-7">
+      妳提到這是日常換穿的需要：若活動條件成立，三套平均每套 {money(comparison.threeSetsConditionalAveragePerSet)}，可作為日常換穿方案考慮。這仍是符合活動資格時的試算，不是結帳實付；數量維持妳確認的，不會自動加購。
+    </p>}
   </section>;
 }

@@ -193,6 +193,8 @@ export interface BudgetComparison {
   oneSet: BudgetScenario;
   threeBras: BudgetScenario;
   threeSets: BudgetScenario;
+  /** threeSets.conditionalSimulation / 3. Conditional on the promotion being valid; never a checkout price. */
+  threeSetsConditionalAveragePerSet: number;
   termsVerified: false;
   validityEnd: string;
 }
@@ -224,6 +226,7 @@ export function buildBudgetComparison(basket: BasketOption): BudgetComparison | 
       conditionalSimulation: threeBrasSimulation, deltaFromOneSet: threeBrasSimulation - oneSimulation, rateLabel: "七折" },
     threeSets: { id: "three_sets", label: "三套：3 件內衣＋3 件內褲", originalTotal: threeSetsOriginal,
       conditionalSimulation: threeSetsSimulation, deltaFromOneSet: threeSetsSimulation - oneSimulation, rateLabel: "五折" },
+    threeSetsConditionalAveragePerSet: Math.round(threeSetsSimulation / 3),
     termsVerified: false,
     validityEnd: PROMO.validityEnd,
   };
