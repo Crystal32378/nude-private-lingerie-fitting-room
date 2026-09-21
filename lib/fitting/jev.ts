@@ -13,6 +13,7 @@
 import { assertHobbySafe, assertProductState, PRODUCT_STATE_ALLOWLIST,
          parseTaskRequest, projectTradeoffState, buildTradeoffPayload, type ProductState, type OutboundContext } from "./privacy.ts";
 import type { Band, Judgment, JudgmentProvenance, Verdict, TradeoffJudgment, TradeoffResult } from "./types.ts";
+import { resolveGatewayCredential } from "./gateway-credential.ts";
 
 export const GATEWAY_URL = "https://ai-gateway.vercel.sh/v1/evaluate";
 export const MODEL_ID = "typesafe-ai/jev";
@@ -35,22 +36,31 @@ export interface JevTransport {
   (body: unknown, signal: AbortSignal): Promise<EvaluateResponse>;
 }
 
+/** Missing credential, or the Gateway refused it (401/403). Carries no token. */
+export class GatewayAuthError extends Error {}
+
 /** Real transport. ZDR is unavailable on hobby, so we send disallowPromptTraining —
- *  which is NOT the same thing and must never be described as zero retention. */
-export const gatewayTransport: JevTransport = async (body, signal) => {
-  // Exported transport must not let callers bypass the adapter's egress guard.
-  assertHobbySafe(body);
-  const key = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN;
-  if (!key) throw new Error("no gateway credential");
-  const res = await fetch(GATEWAY_URL, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok) throw new Error(`gateway ${res.status}`);
-  return (await res.json()) as EvaluateResponse;
-};
+ *  which is NOT the same thing and must never be described as zero retention.
+ *  The credential is looked up per call, after the egress guard. */
+export function createGatewayTransport(getToken: () => Promise<string | null>): JevTransport {
+  return async (body, signal) => {
+    // Exported transport must not let callers bypass the adapter's egress guard.
+    assertHobbySafe(body);
+    const key = await getToken();
+    if (!key) throw new GatewayAuthError("no gateway credential");
+    const res = await fetch(GATEWAY_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (res.status === 401 || res.status === 403) throw new GatewayAuthError(`gateway ${res.status}`);
+    if (!res.ok) throw new Error(`gateway ${res.status}`);
+    return (await res.json()) as EvaluateResponse;
+  };
+}
+
+export const gatewayTransport: JevTransport = createGatewayTransport(async () => (await resolveGatewayCredential()).token);
 
 // ------------------------------------------------------------ thresholds
 // Provisional. NOT calibrated. Until D2 runs, output is prototype judgment,
