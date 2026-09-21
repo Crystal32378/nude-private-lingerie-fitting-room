@@ -33,3 +33,12 @@ test("black only: excluded when she needs a nude colourway", () => {
   const v = gateBra(bra, { ...emptyFrame(), needsNudeColourway: confirmed(true) });
   assert.equal(v.passed, false);
 });
+
+test("nude-10 pairs with every black panty, by brand statement, without touching site pairings", async () => {
+  const { PANTIES, pairsWithBra } = await import("../panties.ts");
+  const partners = PANTIES.filter(p => pairsWithBra(p, "nude-10")).map(p => p.id);
+  const black = PANTIES.filter(p => p.colours.includes("黑色")).map(p => p.id);
+  assert.deepEqual(partners, black);
+  assert.ok(!partners.includes("panty-05") && !partners.includes("panty-07"));
+  assert.ok(PANTIES.every(p => !p.pairsWith.includes("nude-10")));
+});

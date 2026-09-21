@@ -12,7 +12,7 @@
  * identical; the results do not.
  */
 import { NUDE_PRODUCTS } from "../products.ts";
-import { PANTIES } from "./panties.ts";
+import { PANTIES, pairsWithBra } from "./panties.ts";
 import { runGates } from "./gates.ts";
 import { type SituationFrame } from "./types.ts";
 
@@ -260,7 +260,7 @@ export function buildBasketOptions(frame: SituationFrame, now = new Date()): Bas
   for (const braId of gates.eligibleBraIds) {
     const bra = NUDE_PRODUCTS.find(p => p.id === braId)!;
     const partners = matching.value
-      ? PANTIES.filter(p => p.pairsWith.includes(braId) && gates.eligiblePantyIds.includes(p.id)) : [null];
+      ? PANTIES.filter(p => pairsWithBra(p, braId) && gates.eligiblePantyIds.includes(p.id)) : [null];
     for (const panty of partners) {
       const lines: BasketLine[] = [{ id: bra.id, name: bra.nameZh, price: bra.price, qty, promotionEligible: promotionEligibility(bra.id) }];
       const unknowns: string[] = [];
