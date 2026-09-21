@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 import { NUDE_PRODUCTS, PRODUCT_COUNT, Product } from "@/lib/products";
 import { useShowroomStore } from "@/lib/store";
 import { Logo } from "@/components/logo";
@@ -26,6 +27,7 @@ export function ShowroomView() {
             <Logo height={18} />
           </button>
           <div className="flex items-center gap-8 lg:gap-12">
+            <Link href="/fitting-room" className="min-h-11 py-3 text-sm underline underline-offset-4">幫我挑選</Link>
             <span className="label-editorial hidden text-muted-foreground md:inline">
               Virtual Showroom
             </span>
