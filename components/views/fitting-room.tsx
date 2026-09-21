@@ -6,7 +6,8 @@ import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { getProductById } from "@/lib/products";
 import { emptyFrame, type SituationFrame, type TradeoffResult } from "@/lib/fitting/types";
-import { byField, byId, hintsFromUtterance, mentionsDailyRotation } from "@/lib/fitting/questions";
+import { byField, byId, hintsFromUtterance, mentionsDailyRotation, mentionsMovement } from "@/lib/fitting/questions";
+import { readViewed } from "@/lib/fitting/viewed";
 import { askText, productName, CHOICE_LABEL, choiceText, noteText, reasonText, UI, whyText, type Lang } from "@/lib/fitting/i18n";
 import { decide, planNextAction, recommendStyles } from "@/lib/fitting/decide";
 import { buildBasketOptions, buildBudgetComparison, type BudgetComparison } from "@/lib/fitting/promotion";
@@ -74,9 +75,12 @@ export function FittingRoomView() {
   const styleResult = styleProjection ? records[JSON.stringify(styleProjection)] : undefined;
   const basketResult = basketProjection ? records[JSON.stringify(basketProjection)] : undefined;
   const decisions = decide(frame);
-  const styles = recommendStyles(frame, styleResult);
+  const [viewed, setViewed] = useState<string[]>([]);
+  useEffect(() => { setViewed(readViewed()); }, []);
+  const styles = recommendStyles(frame, styleResult, viewed);
   const open = decisions.items.filter(i => i.bucket === "check_with_you"
     && getProductById(i.productId)!.price * (frame.quantityIntent.value ?? 1) <= (frame.budgetMaxTwd.value ?? Infinity))
+    .sort((a, b) => Number(viewed.includes(b.productId)) - Number(viewed.includes(a.productId)))
     .slice(0, Math.max(0, 3 - styles.length));
   const excluded = decisions.items.filter(i => i.bucket === "not_a_fit").slice(0, 2);
   const baskets = buildBasketOptions(frame);
@@ -147,7 +151,9 @@ export function FittingRoomView() {
             className="w-full resize-y border border-border bg-card px-4 py-3 text-base leading-7 focus:outline-2 focus:outline-primary" />
           <p className="mt-2 text-sm leading-6 text-muted-foreground">{t.privacy}</p>
           {!started && <div className="mt-5 flex flex-wrap gap-3">
-            <button className={button} onClick={() => { setStarted(true); setHints(hintsFromUtterance(utterance)); }}>{t.confirmNeeds}</button>
+            <button className={button} onClick={() => { setStarted(true); setHints(hintsFromUtterance(utterance));
+              // Her own words, pre-selected only; she still confirms or changes it.
+              if (mentionsMovement(utterance)) setDraft(previous => previous.priority ? previous : { ...previous, priority: JSON.stringify("movement") }); }}>{t.confirmNeeds}</button>
             <button className={secondary} onClick={fillExample}>{t.fillExample}</button>
           </div>}
           {started && <div className="mt-7 border-t border-border pt-6">
@@ -234,6 +240,7 @@ export function FittingRoomView() {
                 <p className="mt-2 text-xs text-muted-foreground">{t.photoNote}</p>
                 <p className="mt-4 text-sm text-muted-foreground">{item.bucket === "check_with_you" ? t.needsCheck : judgment ? judgment.status === "judged" ? choiceLabel[judgment.choice] ?? choiceLabel.insufficient_evidence : choiceLabel.insufficient_evidence : t.fitsConfirmed}</p>
                 <h3 className="mt-2 text-lg leading-7">{productName(product.id, lang)}</h3>
+                {viewed.includes(product.id) && <p className="mt-1 text-xs text-muted-foreground">{t.viewed}</p>}
                 <p className="mt-2 text-sm">{money(product.price, lang)} <span className="text-muted-foreground">{t.perItem}</span></p>
                 <ul className="mt-3 space-y-1 text-sm leading-6 text-muted-foreground">
                   {item.reasons.filter(r => r.field !== "price").slice(0, 2).map(reason => <li key={reason.field}>{reasonText(reason, lang)}</li>)}

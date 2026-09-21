@@ -62,11 +62,12 @@ export const QUESTIONS: Question[] = [
       { label: "超過 8 小時", value: "over_8" },
     ] },
   { id: "q_priority", field: "priority", stage: "occasion",
-    ask: "出差時更重視整天舒適，還是希望胸型更集中俐落？",
+    ask: "這次更重視什麼？",
     choices: [
       { label: "舒適", value: "comfort" },
       { label: "塑形", value: "shaping" },
       { label: "都要，平衡就好", value: "balanced" },
+      { label: "要能活動、穩定不晃", value: "movement" },
     ] },
 
   // ---- 3. appearance ----
@@ -151,6 +152,17 @@ export function hintsFromUtterance(text: string): string[] {
   if (has("預算", "元", "NT", "$")) hit.push("q_budget");
   if (has("成套", "內褲", "一套", "matching", "brief", "panty", "set")) hit.push("q_set", "q_size");
   return [...new Set(hit)];
+}
+
+/**
+ * Client-side only, same boundary as hintsFromUtterance: the text is never sent.
+ * True when her own words say she will be moving. It only pre-selects the matching
+ * priority option in the confirm step; she still confirms or changes it.
+ */
+export function mentionsMovement(text: string): boolean {
+  const lower = text.toLowerCase();
+  return ["運動", "健身", "瑜伽", "跑步", "爬山", "舞", "活動量", "動來動去",
+    "sport", "gym", "workout", "yoga", "run", "hiking", "dance", "active"].some((w) => lower.includes(w));
 }
 
 /**

@@ -34,7 +34,7 @@ type FieldSpec =
 export const CONTEXT_SCHEMA = {
   outerGarment: { kind: "enum", values: ["thin_fitted", "thick_or_loose", "other", "not_stated"] },
   wearDuration: { kind: "enum", values: ["under_4", "4_to_8", "over_8", "not_stated"] },
-  priority: { kind: "enum", values: ["comfort", "shaping", "balanced", "not_stated"] },
+  priority: { kind: "enum", values: ["comfort", "shaping", "balanced", "movement", "not_stated"] },
   needsNudeColourway: { kind: "boolean" },
   requiresNoVisibleLines: { kind: "boolean" },
   basketPriority: { kind: "enum", values: ["lowest_total", "construction_balance"] },
@@ -217,7 +217,7 @@ export function isHobbySafe(payload: unknown): boolean {
 export const TASK_FIELD_VALUES = {
   outerGarment: ["thin_fitted", "thick_or_loose", "other", "not_stated"],
   wearDuration: ["under_4", "4_to_8", "over_8", "not_stated"],
-  priority: ["comfort", "shaping", "balanced", "not_stated"],
+  priority: ["comfort", "shaping", "balanced", "movement", "not_stated"],
   needsNudeColourway: [true, false], requiresNoVisibleLines: [true, false],
   canReachBackClosure: [true, false], canRotateBandAroundTorso: [true, false],
   canRaiseArmsOverhead: [true, false], canPassOverHead: [true, false], canPerformFineMotorPinch: [true, false],
