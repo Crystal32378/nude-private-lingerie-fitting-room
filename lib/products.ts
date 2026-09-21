@@ -266,7 +266,7 @@ export const NUDE_PRODUCTS: Product[] = [
   {
     id: "nude-09",
     nameZh: "NUDE 魔幻時尚前扣內衣",
-    nameEn: "Strapless Convertible",
+    nameEn: "Convertible Bra",
     productUrl: "https://www.nude4underwear.com/products/convertible-bra",
     category: "bra (convertible / front-closure / strapless)",
     sku: "F02",
