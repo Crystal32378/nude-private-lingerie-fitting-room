@@ -23,8 +23,16 @@ export const PROMO = {
   observedSiteEnd: "2026-10-16T08:00:00+08:00",
   evidenceLabel: "recorded" as const,
   evidenceTimestamp: "2026-09-20T00:00:00+08:00",
-  /** 指定商品 list not yet supplied, so no item can be proven eligible. */
-  termsVerified: false,
+  /** Public site terms confirmed: the official promotion page lists the tiers and the
+   *  指定商品, and Crystal (brand owner) confirmed on 2026-09-21 that the campaign is
+   *  live until validityEnd. "Public" is not "checkout": member, card and points
+   *  offers may still stack in the site cart, so the total is the public activity
+   *  price, never a claimed checkout payment. */
+  termsVerified: true,
+  sourceUrl: "https://www.nude4underwear.com/promotions/6a28e5b90ac3867ee4dd42e4",
+  /** Corpus items that appear in the official 指定商品 list (read 2026-09-21). */
+  eligibleIds: ["nude-01", "nude-02", "nude-03", "nude-04", "nude-05", "nude-06", "nude-07", "nude-08", "nude-09",
+    "panty-01", "panty-02", "panty-03", "panty-04", "panty-05", "panty-06", "panty-07", "panty-08"],
   tiers: [
     { id: "tier_5_50", minItems: 5, rate: 0.5 },
     { id: "tier_3_70", minItems: 3, rate: 0.7 },
@@ -59,6 +67,11 @@ export function tierFor(count: number): { id: TierId; rate: number } {
   return { id: "none", rate: 1 };
 }
 
+/** Eligibility comes only from the official 指定商品 list; anything else stays unknown (fail closed). */
+export function promotionEligibility(id: string): "yes" | "unknown" {
+  return (PROMO.eligibleIds as readonly string[]).includes(id) ? "yes" : "unknown";
+}
+
 export function isCampaignLive(now: Date): boolean {
   return now.getTime() <= new Date(PROMO.validityEnd).getTime();
 }
@@ -88,6 +101,7 @@ export function calculate(lines: BasketLine[], now = new Date()): PromotionCalcu
   // Terms unverified => the discounted figure is a simulation, never the price.
   const isSimulation = !PROMO.termsVerified;
   if (isSimulation) notes.push("條件式活動模擬：活動條款尚未核對，折後金額不得視為結帳實付價");
+  else notes.push("官網公開活動價；會員、信用卡、點數等優惠可能在結帳時再疊加，實付以購物車為準");
 
   return {
     preDiscountTotal, eligibleItemCount, appliedTier: tier.id, finalTotal,
@@ -193,41 +207,41 @@ export interface BudgetComparison {
   oneSet: BudgetScenario;
   threeBras: BudgetScenario;
   threeSets: BudgetScenario;
-  /** threeSets.conditionalSimulation / 3. Conditional on the promotion being valid; never a checkout price. */
+  /** threeSets activity price / 3. Public activity price, never a checkout payment. */
   threeSetsConditionalAveragePerSet: number;
-  termsVerified: false;
+  termsVerified: boolean;
   validityEnd: string;
 }
 
 /**
  * A transparent comparison for the moment after a one-set recommendation.
- * It never changes the basket's defaultTotal and never claims checkout price;
- * both discount figures are explicitly conditional simulations.
+ * It never changes the basket or its quantity. `conditionalSimulation` is the
+ * public activity price from calculate(); checkout may stack further offers.
  */
-export function buildBudgetComparison(basket: BasketOption): BudgetComparison | null {
+export function buildBudgetComparison(basket: BasketOption, now = new Date()): BudgetComparison | null {
   if (!basket.pantyId || basket.lines.length !== 2 || basket.lines.some(line => line.qty !== 1)) return null;
   const bra = basket.lines.find(line => line.id === basket.braId);
   const panty = basket.lines.find(line => line.id === basket.pantyId);
   if (!bra || !panty) return null;
 
-  const oneOriginal = bra.price + panty.price;
-  const oneSimulation = Math.round(oneOriginal * 0.9);
-  const threeBrasOriginal = bra.price * 3;
-  const threeBrasSimulation = Math.round(threeBrasOriginal * 0.7);
-  const threeSetsOriginal = oneOriginal * 3;
-  const threeSetsSimulation = Math.round(threeSetsOriginal * 0.5);
+  // Same engine as the baskets: eligibility, campaign end and tiers all apply.
+  const RATE_LABEL: Record<TierId, string> = { none: "原價", tier_1_90: "九折", tier_3_70: "七折", tier_5_50: "五折" };
+  const scenario = (id: BudgetScenario["id"], label: string, lines: BasketLine[]) => {
+    const c = calculate(lines, now);
+    return { id, label, originalTotal: c.preDiscountTotal, conditionalSimulation: c.finalTotal, rateLabel: RATE_LABEL[c.appliedTier] };
+  };
+  const one = scenario("one_set", "一套：1 件內衣＋1 件內褲", [bra, panty]);
+  const threeBras = scenario("three_bras", "三件內衣", [{ ...bra, qty: 3 }]);
+  const threeSets = scenario("three_sets", "三套：3 件內衣＋3 件內褲", [{ ...bra, qty: 3 }, { ...panty, qty: 3 }]);
 
   return {
     braId: basket.braId,
     pantyId: basket.pantyId,
-    oneSet: { id: "one_set", label: "一套：1 件內衣＋1 件內褲", originalTotal: oneOriginal,
-      conditionalSimulation: oneSimulation, deltaFromOneSet: 0, rateLabel: "九折" },
-    threeBras: { id: "three_bras", label: "三件內衣", originalTotal: threeBrasOriginal,
-      conditionalSimulation: threeBrasSimulation, deltaFromOneSet: threeBrasSimulation - oneSimulation, rateLabel: "七折" },
-    threeSets: { id: "three_sets", label: "三套：3 件內衣＋3 件內褲", originalTotal: threeSetsOriginal,
-      conditionalSimulation: threeSetsSimulation, deltaFromOneSet: threeSetsSimulation - oneSimulation, rateLabel: "五折" },
-    threeSetsConditionalAveragePerSet: Math.round(threeSetsSimulation / 3),
-    termsVerified: false,
+    oneSet: { ...one, deltaFromOneSet: 0 },
+    threeBras: { ...threeBras, deltaFromOneSet: threeBras.conditionalSimulation - one.conditionalSimulation },
+    threeSets: { ...threeSets, deltaFromOneSet: threeSets.conditionalSimulation - one.conditionalSimulation },
+    threeSetsConditionalAveragePerSet: Math.round(threeSets.conditionalSimulation / 3),
+    termsVerified: PROMO.termsVerified,
     validityEnd: PROMO.validityEnd,
   };
 }
@@ -247,10 +261,10 @@ export function buildBasketOptions(frame: SituationFrame, now = new Date()): Bas
     const partners = matching.value
       ? PANTIES.filter(p => p.pairsWith.includes(braId) && gates.eligiblePantyIds.includes(p.id)) : [null];
     for (const panty of partners) {
-      const lines: BasketLine[] = [{ id: bra.id, name: bra.nameZh, price: bra.price, qty, promotionEligible: "unknown" }];
+      const lines: BasketLine[] = [{ id: bra.id, name: bra.nameZh, price: bra.price, qty, promotionEligible: promotionEligibility(bra.id) }];
       const unknowns: string[] = [];
       if (panty) {
-        lines.push({ id: panty.id, name: panty.nameZh, price: panty.price, qty, promotionEligible: panty.promotionEligible });
+        lines.push({ id: panty.id, name: panty.nameZh, price: panty.price, qty, promotionEligible: promotionEligibility(panty.id) });
         if (!panty.confirmedByCrystal) unknowns.push("褲款資料尚待品牌逐列核對");
         if (frame.needsNudeColourway.value === true && !panty.colourConfirmedAt) unknowns.push("褲款裸色仍待品牌確認");
       }

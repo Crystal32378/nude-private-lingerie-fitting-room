@@ -120,7 +120,9 @@ test("basket prices and quantity come from code, not the request or JEV", async 
   assert.ok(options.length > 1);
   for (const b of options) {
     assert.equal(b.lines.filter(l => l.id.startsWith("nude-")).reduce((n, l) => n + l.qty, 0), 2);
-    assert.equal(b.calculation.defaultTotal, b.lines.reduce((n, l) => n + l.price * l.qty, 0));
+    // Public activity price from the deterministic engine, never from the request or JEV.
+    assert.equal(b.calculation.defaultTotal, Math.round(b.lines.reduce((n, l) => n + l.price * l.qty, 0) * 0.9));
+    assert.equal(b.calculation.defaultTotal, b.calculation.finalTotal);
     assert.ok(b.budget.withinBudget);
   }
   const result = await evaluateTradeoff(buildTaskRequest("basket_tradeoff", f), fake);
@@ -142,11 +144,12 @@ test("Tokyo one-set comparison keeps original total separate from conditional si
     one: [2460, 2214, 0],
     threeBras: [5640, 3948, 1734],
     threeSets: [7380, 3690, 1476],
-    termsVerified: false,
+    termsVerified: true,
   });
-  // Average per set is derived from the conditional simulation only; the basket itself is unchanged.
+  // Average per set comes from the three-set activity price; the basket itself is unchanged.
   assert.equal(comparison!.threeSetsConditionalAveragePerSet, 1230);
-  assert.equal(basket!.calculation.defaultTotal, 2460);
+  assert.equal(basket!.calculation.defaultTotal, 2214);
+  assert.equal(basket!.calculation.preDiscountTotal, 2460);
   assert.deepEqual(basket!.lines.map(line => line.qty), [1, 1]);
 });
 
@@ -165,7 +168,8 @@ test("basket proposals never reinstate excluded bras or silently add quantity", 
 });
 
 test("style recommendation also respects the confirmed whole-basket ceiling", () => {
-  const f = frame({ quantityIntent: c(3), budgetMaxTwd: c(5000) });
+  // Cheapest eligible bra ×3 at 七折 is NT$3,948, still over a NT$3,000 ceiling.
+  const f = frame({ quantityIntent: c(3), budgetMaxTwd: c(3000) });
   assert.equal(recommendStyles(f).length, 0);
   assert.equal(projectTradeoffState("style_tradeoff", f), null);
   assert.equal(planNextAction({ ...f, canPassOverHead: { value: null, provenance: "unknown" } }).kind, "recommend");

@@ -102,17 +102,20 @@ test("AT-2-3 projection rejects unknown source fields and omits known non-eviden
 });
 
 // ───────────────────────────────── AT-3a · planned/unverified promotion
-test("AT-3a terms unverified → default total is list price, discount is simulation", () => {
-  const lines: BasketLine[] = [
-    { id: "nude-09", name: "魔幻時尚前扣", price: 1880, promotionEligible: "unknown", qty: 1 },
-    { id: "panty-02", name: "魔幻時尚無痕", price: 580, promotionEligible: "unknown", qty: 1 },
-  ];
-  const c = calculate(lines, new Date("2026-09-25T00:00:00+08:00"));
-  assert.equal(PROMO.termsVerified, false);
-  assert.equal(c.isSimulation, true);
-  assert.equal(c.defaultTotal, c.preDiscountTotal, "she pays list price until terms are verified");
-  assert.equal(c.defaultTotal, 2460);
-  assert.ok(c.notes.some(n => n.includes("條件式活動模擬")));
+test("AT-3a public site terms → designated items use the activity price; unknown items stay list price", () => {
+  const at = new Date("2026-09-25T00:00:00+08:00");
+  assert.equal(PROMO.termsVerified, true);
+  const listed = calculate([
+    { id: "nude-09", name: "魔幻時尚前扣", price: 1880, promotionEligible: "yes", qty: 1 },
+    { id: "panty-02", name: "魔幻時尚無痕", price: 580, promotionEligible: "yes", qty: 1 },
+  ], at);
+  assert.equal(listed.isSimulation, false);
+  assert.equal(listed.defaultTotal, 2214, "public activity price (一件9折)");
+  assert.ok(listed.notes.some(n => n.includes("實付以購物車為準")), "never claimed as the checkout payment");
+  const unlisted = calculate([
+    { id: "x-1", name: "未列指定", price: 1880, promotionEligible: "unknown", qty: 1 },
+  ], at);
+  assert.equal(unlisted.defaultTotal, 1880, "not on the official list → no discount (fail closed)");
 });
 
 test("AT-3a-2 unresolved eligibility is fail-closed, never counted", () => {
