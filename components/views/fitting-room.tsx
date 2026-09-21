@@ -237,13 +237,8 @@ export function FittingRoomView() {
                 {item.bucket !== "check_with_you" && <details open className="mt-4 border-t border-border pt-3 text-sm">
                   <summary className="cursor-pointer underline underline-offset-4">查看判斷分布</summary>
                   {judgment ? <>
-                    <p className="my-2 text-xs leading-5 text-muted-foreground">JEV 的判斷資料（Prototype judgment）：這是選項分布，不是穿著合適率，也不改動價格、顏色、扣法或預算。</p>
-                    <div className="flex justify-between gap-3 py-1"><span>JEV 原始選擇</span><span className="text-right">{CHOICES[judgment.choice] ?? "取捨仍待確認"}</span></div>
-                    <div className="flex justify-between gap-3 py-1"><span>confidence</span><span>{typeof judgment.confidence === "number" ? `${Math.round(judgment.confidence * 100)}%` : "未提供"}</span></div>
-                    {Object.entries(judgment.probabilities).map(([key, value]) => <div key={key} className="flex justify-between gap-3 py-1 text-muted-foreground"><span>{CHOICES[key]}</span><span>{Math.round(value * 100)}%</span></div>)}
-                    <p className="mt-2 border-t border-border pt-2 leading-6">Agent 是否採用：{judgment.status === "judged"
-                      ? "採用，作為排序參考"
-                      : "未採用（信心不足或證據不足），不視為推薦"}</p>
+                    <p className="my-2 text-xs leading-5 text-muted-foreground">Prototype judgment：這是選項分布，不是穿著合適率。</p>
+                    {Object.entries(judgment.probabilities).map(([key, value]) => <div key={key} className="flex justify-between gap-3 py-1"><span>{CHOICES[key]}</span><span>{Math.round(value * 100)}%</span></div>)}
                   </> : <p className="my-2 text-xs leading-5 text-muted-foreground">
                     {loading ? "JEV 判斷中；商品事實與價格仍由程式核對。" : "JEV 這次沒有提供判斷，未採用任何模型結果；此款依已確認條件列出。"}
                   </p>}
