@@ -168,6 +168,7 @@ export const UI = {
     heldTotal: (n: number) => `Official activity-price total ${nt(n)}; stock, shipping and member, card or points offers are confirmed in the site cart.`,
     sizeLabel: "Please confirm your brief size from the official chart", sizeNone: "Not chosen",
     fxNote: (rate: number, date: string) => `US$ amounts are approximate, converted at NT$${rate} = US$1 (Bank of Taiwan spot rate, ${date}). Prices are charged in NT$ at checkout.`,
+    shippingNote: "Ships from Taiwan. Free shipping over NT$3,000 in Asia, NT$5,000 to Europe and the Americas; 7–10 business days. Overseas orders can't be returned.",
     footer: "First, we understand what matters to you. Then we compare product evidence and explain the trade-offs. You make the final decision.",
     price: {
       eyebrow: "After the recommendation, the price", title: "So, what would this cost?",
@@ -248,6 +249,7 @@ export const UI = {
     heldTotal: (n: number) => `官網活動價合計 NT$${n.toLocaleString("zh-TW")}；庫存、運費與會員、信用卡、點數等結帳優惠以官網購物車為準。`,
     sizeLabel: "依官方對照，請自行確認內褲尺碼", sizeNone: "尚未選擇",
     fxNote: (_rate: number, _date: string) => "",
+    shippingNote: "",
     footer: "先懂妳的需求，再比較商品內容，提供方案取捨。最後，由妳決定。",
     price: {
       eyebrow: "推薦後，先看金額", title: "好，這樣買要多少錢？",
