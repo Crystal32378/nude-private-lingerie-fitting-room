@@ -12,11 +12,14 @@ import { decide, planNextAction, recommendStyles } from "@/lib/fitting/decide";
 import { buildBasketOptions, buildBudgetComparison, type BudgetComparison } from "@/lib/fitting/promotion";
 import { buildTaskRequest, projectTradeoffState, type TaskField } from "@/lib/fitting/privacy";
 import { PANTY_SIZE_CHART } from "@/lib/fitting/panties";
+import { approxUsd, FX } from "@/lib/fitting/fx";
 
 const CORE: TaskField[] = ["canReachBackClosure", "needsNudeColourway", "requiresNoVisibleLines", "priority",
   "matchingSetDesired", "quantityIntent", "budgetMaxTwd"];
 const EXTRA: TaskField[] = ["canRaiseArmsOverhead", "canPerformFineMotorPinch", "canRotateBandAroundTorso", "canPassOverHead", "basketPriority"];
-const money = (n: number) => `NT$${n.toLocaleString("zh-TW")}`;
+const nt = (n: number) => `NT$${n.toLocaleString("zh-TW")}`;
+/** English adds a US$ reference beside the real NT$ price; the rate is footnoted once. */
+const money = (n: number, lang: Lang = "zh") => lang === "en" ? `${nt(n)} · ${approxUsd(n)}` : nt(n);
 const button = "min-h-11 border border-primary bg-primary px-5 py-3 text-sm text-primary-foreground transition-colors hover:bg-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary disabled:opacity-40";
 const secondary = "min-h-11 border border-border px-4 py-3 text-sm hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
@@ -231,7 +234,7 @@ export function FittingRoomView() {
                 <p className="mt-2 text-xs text-muted-foreground">{t.photoNote}</p>
                 <p className="mt-4 text-sm text-muted-foreground">{item.bucket === "check_with_you" ? t.needsCheck : judgment ? judgment.status === "judged" ? choiceLabel[judgment.choice] ?? choiceLabel.insufficient_evidence : choiceLabel.insufficient_evidence : t.fitsConfirmed}</p>
                 <h3 className="mt-2 text-lg leading-7">{productName(product.id, lang)}</h3>
-                <p className="mt-2 text-sm">{money(product.price)} <span className="text-muted-foreground">{t.perItem}</span></p>
+                <p className="mt-2 text-sm">{money(product.price, lang)} <span className="text-muted-foreground">{t.perItem}</span></p>
                 <ul className="mt-3 space-y-1 text-sm leading-6 text-muted-foreground">
                   {item.reasons.filter(r => r.field !== "price").slice(0, 2).map(reason => <li key={reason.field}>{reasonText(reason, lang)}</li>)}
                 </ul>
@@ -274,7 +277,7 @@ export function FittingRoomView() {
                   <p className="text-sm text-muted-foreground">{basket.needsReview ? t.draftSet : basket.id === preferredBasket ? modelPreferredBasket ? t.jevSuggests : t.ruleAgrees : basket.id === baskets[0].id ? t.lowest : t.another}</p>
                   <h3 className="mt-2 text-lg leading-7">{basket.lines.map(line => `${productName(line.id, lang, line.name)} × ${line.qty}`).join(lang === "en" ? " + " : " ＋ ")}</h3>
                 </div>
-                <div><p className="text-xl">{money(basket.calculation.defaultTotal)}</p><p className="mt-1 text-xs text-muted-foreground">{basket.calculation.savings > 0 ? t.activityWas(basket.calculation.preDiscountTotal) : t.setTotal}{t.shippingLater}</p></div>
+                <div><p className="text-xl">{money(basket.calculation.defaultTotal, lang)}</p><p className="mt-1 text-xs text-muted-foreground">{basket.calculation.savings > 0 ? t.activityWas(basket.calculation.preDiscountTotal) : t.setTotal}{t.shippingLater}</p></div>
               </div>
               <p className="mt-3 text-sm leading-6 text-muted-foreground">{t.vsLowest(basket.calculation.defaultTotal - baskets[0].calculation.defaultTotal)}{lang === "en" ? " " : ""}{basket.unknowns.map(u => noteText(u, lang)).join(lang === "en" ? "; " : "；")}</p>
               <details className="mt-3 text-sm">
@@ -299,6 +302,7 @@ export function FittingRoomView() {
         </section>
       </>}
     </main>
+    {lang === "en" && <p className="mx-auto max-w-3xl px-5 pb-6 text-xs leading-5 text-muted-foreground">{t.fxNote(FX.twdPerUsd, FX.observedOn)}</p>}
     <footer className="border-t border-border px-5 py-8 text-center text-sm leading-7 text-muted-foreground">{t.footer}</footer>
   </div>;
 }
@@ -314,17 +318,17 @@ function PriceDecisionPanel({ comparison, dailyNeed, lang }: { comparison: Budge
     <div className="mt-6 grid gap-3 sm:grid-cols-3">
       <div className="border border-border p-4">
         <p className="text-xs text-muted-foreground">{p.oneList}</p>
-        <p className="mt-2 text-2xl">{money(comparison.oneSet.originalTotal)}</p>
+        <p className="mt-2 text-2xl">{money(comparison.oneSet.originalTotal, lang)}</p>
         <p className="mt-1 text-sm">{p.noDiscount}</p>
       </div>
       <div className="border border-border p-4">
         <p className="text-xs text-muted-foreground">{p.oneActivity}</p>
-        <p className="mt-2 text-2xl">{money(comparison.oneSet.conditionalSimulation)}</p>
+        <p className="mt-2 text-2xl">{money(comparison.oneSet.conditionalSimulation, lang)}</p>
         <p className="mt-1 text-sm">{p.oneActivityNote(rate(comparison.oneSet.rateLabel))}</p>
       </div>
       <div className="border border-border p-4">
         <p className="text-xs text-muted-foreground">{p.threeSets}</p>
-        <p className="mt-2 text-2xl">{money(comparison.threeSets.conditionalSimulation)}</p>
+        <p className="mt-2 text-2xl">{money(comparison.threeSets.conditionalSimulation, lang)}</p>
         <p className="mt-1 text-sm">{p.avg(comparison.threeSetsConditionalAveragePerSet)}</p>
         <p className="mt-1 text-sm">{p.moreThanOne(comparison.threeSets.deltaFromOneSet)}</p>
       </div>
@@ -340,8 +344,8 @@ function PriceDecisionPanel({ comparison, dailyNeed, lang }: { comparison: Budge
         </tr></thead>
         <tbody>{rows.map(row => <tr key={row.id} className="border-b border-border last:border-0">
           <th className="py-3 pr-4 font-normal">{p.rows[row.id] ?? row.label}</th>
-          <td className="px-4 py-3">{money(row.originalTotal)}</td>
-          <td className="px-4 py-3">{money(row.conditionalSimulation)}{lang === "en" ? ` (${rate(row.rateLabel)})` : `（${row.rateLabel}）`}</td>
+          <td className="px-4 py-3">{money(row.originalTotal, lang)}</td>
+          <td className="px-4 py-3">{money(row.conditionalSimulation, lang)}{lang === "en" ? ` (${rate(row.rateLabel)})` : `（${row.rateLabel}）`}</td>
           <td className="py-3 pl-4">{row.deltaFromOneSet === 0 ? p.base : p.more(row.deltaFromOneSet)}</td>
         </tr>)}</tbody>
       </table>

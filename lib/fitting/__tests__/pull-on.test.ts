@@ -42,3 +42,19 @@ test("nude-10 pairs with every black panty, by brand statement, without touching
   assert.ok(!partners.includes("panty-05") && !partners.includes("panty-07"));
   assert.ok(PANTIES.every(p => !p.pairsWith.includes("nude-10")));
 });
+
+test("US$ is a rounded reference from the recorded rate, never a price", async () => {
+  const { approxUsd, FX } = await import("../fx.ts");
+  assert.equal(FX.twdPerUsd, 31.76);
+  assert.equal(approxUsd(1980), "≈ US$62");
+  assert.ok(NUDE_PRODUCTS.every(p => typeof p.price === "number"));
+});
+
+test("pull-on reasons read as pull-on, not as a back closure", async () => {
+  const { decide } = await import("../decide.ts");
+  const { reasonText } = await import("../i18n.ts");
+  const item = decide(emptyFrame()).items.find(i => i.productId === "nude-10")!;
+  const closure = item.reasons.find(r => r.field === "closure")!;
+  assert.equal(closure.text, "無背扣，直接套上");
+  assert.equal(reasonText(closure, "en"), "No clasp — pulls on");
+});

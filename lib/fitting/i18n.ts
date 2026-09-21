@@ -26,8 +26,8 @@ const QUESTIONS_EN: Record<string, QText> = {
     why: "This answer changes the most options — back-clasp styles may come back into view.",
     choices: { true: "Yes", false: "No", null: "Not sure" } },
   q_overhead: { ask: "Is raising your arms above your head difficult?", choices: { true: "Not difficult", false: "Difficult", null: "Not sure" } },
-  q_overhead_pass: { ask: "One style has a halter neck that doesn't unclip, so it goes on over your head. Is that OK for you?",
-    why: "It fastens at the front, but the neck loop can't open, so your head still has to go through. Only you can answer this.",
+  q_overhead_pass: { ask: "Some styles go on over your head — a halter neck that doesn't unclip, or a pull-on style with no clasp. Is that OK for you?",
+    why: "These need no back clasp, but your head still has to go through. Only you can answer this.",
     choices: { true: "Yes", false: "I can't", null: "Not sure" } },
   q_pinch: { ask: "Can you pinch and line up a small hook with both hands?", choices: { true: "Yes", false: "That's hard", null: "Not sure" } },
   q_garment: { ask: "Is the white shirt fitted and thin, or looser and thicker?",
@@ -78,7 +78,9 @@ export function reasonText(reason: { text: string; field: string }, lang: Lang):
   const inner = reason.text.match(/（(.*)）/)?.[1];
   const withInner = (s: string) => inner ? `${s} (${inner})` : s;
   switch (reason.field) {
-    case "closure": return reason.text.startsWith("前扣") ? "Front closure — no reaching behind" : withInner("Back closure");
+    case "closure": return reason.text.startsWith("前扣") ? "Front closure — no reaching behind"
+      : reason.text.startsWith("無背扣，直接") ? "No clasp — pulls on"
+      : reason.text.startsWith("無背扣") ? "No clasp, but it goes on over the head" : withInner("Back closure");
     case "wire": return reason.text === "無鋼圈" ? "Wire-free" : "Soft underwire";
     case "colors": case "colours": return reason.text.startsWith("有裸色") ? withInner("Has a nude shade") : withInner("No nude shade");
     case "straps": return withInner("Halter neck that doesn't unclip — goes on over the head");
@@ -164,6 +166,7 @@ export const UI = {
     heldDraft: "The set details still need brand confirmation. ", heldGo: "You can go to the official product page and decide. ",
     heldTotal: (n: number) => `Official activity-price total ${nt(n)}; stock, shipping and member, card or points offers are confirmed in the site cart.`,
     sizeLabel: "Please confirm your brief size from the official chart", sizeNone: "Not chosen",
+    fxNote: (rate: number, date: string) => `US$ amounts are approximate, converted at NT$${rate} = US$1 (Bank of Taiwan spot rate, ${date}). Prices are charged in NT$ at checkout.`,
     footer: "First, we understand what matters to you. Then we compare product evidence and explain the trade-offs. You make the final decision.",
     price: {
       eyebrow: "After the recommendation, the price", title: "So, what would this cost?",
@@ -242,6 +245,7 @@ export const UI = {
     heldDraft: "配套資料仍需品牌確認。", heldGo: "可以前往官方商品頁自行決定。",
     heldTotal: (n: number) => `官網活動價合計 NT$${n.toLocaleString("zh-TW")}；庫存、運費與會員、信用卡、點數等結帳優惠以官網購物車為準。`,
     sizeLabel: "依官方對照，請自行確認內褲尺碼", sizeNone: "尚未選擇",
+    fxNote: (_rate: number, _date: string) => "",
     footer: "先懂妳的需求，再比較商品內容，提供方案取捨。最後，由妳決定。",
     price: {
       eyebrow: "推薦後，先看金額", title: "好，這樣買要多少錢？",

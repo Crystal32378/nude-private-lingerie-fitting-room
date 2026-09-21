@@ -15,7 +15,9 @@ export const MAX_BEST_FIT = 3;
 
 /** Fields we may quote. A comfort claim with no field behind it is not allowed. */
 function factReasons(p: Product): { text: string; field: string }[] {
-  const out = [{ text: p.closure.startsWith("front") ? "前扣，不需背手" : `背扣（${p.closure}）`, field: "closure" }];
+  const closure = p.closure.startsWith("front") ? "前扣，不需背手"
+    : p.closure.startsWith("none") ? "無背扣，直接套上" : `背扣（${p.closure}）`;
+  const out = [{ text: closure, field: "closure" }];
   out.push({ text: p.wire === "wireless" ? "無鋼圈" : "軟鋼圈", field: "wire" });
   if (/裸|膚/.test(p.colors.join(""))) out.push({ text: `有裸色（${p.colors.join("、")}）`, field: "colors" });
   out.push({ text: `NT$${p.price}`, field: "price" });

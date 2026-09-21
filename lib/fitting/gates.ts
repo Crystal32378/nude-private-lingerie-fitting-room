@@ -56,7 +56,9 @@ export function gateBra(p: Product, f: SituationFrame): GateVerdict {
 
   if (REQUIRES_PASS_OVER_HEAD.has(p.id)) {
     if (binds(f.canPassOverHead) && f.canPassOverHead.value === false) {
-      blockers.push({ field: "straps", text: `繞頸不可拆，需從頭套下（${p.straps}）` });
+      blockers.push(isPullOn(p)
+        ? { field: "closure", text: "無背扣，需從頭套下" }
+        : { field: "straps", text: `繞頸不可拆，需從頭套下（${p.straps}）` });
     } else if (!binds(f.canPassOverHead)) {
       // Not a blocker. An open question. nude-08 stays Check with you.
       reversibleBy = "canPassOverHead";
