@@ -250,6 +250,19 @@ export function buildBudgetComparison(basket: BasketOption, now = new Date()): B
 /** A small, explicit set of same-style baskets. No added units, inferred sizes,
  * member price, or excluded items. Explore the full eligible corpus before cap. */
 export function buildBasketOptions(frame: SituationFrame, now = new Date()): BasketOption[] {
+  return basketsFor(frame, runGates(frame).eligibleBraIds, now);
+}
+
+/** Bras (eligible or still held open by a question) that fit the confirmed
+ * whole-set ceiling. Used only to decide what JEV may compare; never shown as
+ * a purchasable basket, so an open style cannot be kept before she answers. */
+export function affordableBraIds(frame: SituationFrame, braIds: string[], now = new Date()): Set<string> | null {
+  const { quantityIntent: q, matchingSetDesired: m, budgetMaxTwd: b } = frame;
+  if (q.value === null || m.value === null || b.value === null) return null;
+  return new Set(basketsFor(frame, braIds, now).map(o => o.braId));
+}
+
+function basketsFor(frame: SituationFrame, braIds: string[], now: Date): BasketOption[] {
   const { quantityIntent: quantity, matchingSetDesired: matching, budgetMaxTwd: budget } = frame;
   if (quantity.provenance !== "confirmed" || ![1, 2, 3].includes(quantity.value ?? 0)
     || matching.provenance !== "confirmed" || typeof matching.value !== "boolean"
@@ -257,7 +270,7 @@ export function buildBasketOptions(frame: SituationFrame, now = new Date()): Bas
   const qty = quantity.value!;
   const gates = runGates(frame);
   const options: BasketOption[] = [];
-  for (const braId of gates.eligibleBraIds) {
+  for (const braId of braIds) {
     const bra = NUDE_PRODUCTS.find(p => p.id === braId)!;
     const partners = matching.value
       ? PANTIES.filter(p => pairsWithBra(p, braId) && gates.eligiblePantyIds.includes(p.id)) : [null];

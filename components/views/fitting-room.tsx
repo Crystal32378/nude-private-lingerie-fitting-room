@@ -247,7 +247,7 @@ export function FittingRoomView() {
                 </ul>
                 {item.openQuestion && <p className="mt-3 text-sm leading-6">{askText(byId(item.openQuestion.id), lang) || item.openQuestion.ask}</p>}
                 {item.uncertain.map(note => <p key={note} className="mt-3 text-sm leading-6">{noteText(note, lang)}</p>)}
-                {item.bucket !== "check_with_you" && <details open className="mt-4 border-t border-border pt-3 text-sm">
+                {<details open className="mt-4 border-t border-border pt-3 text-sm">
                   <summary className="cursor-pointer underline underline-offset-4">{t.distSummary}</summary>
                   {judgment ? <>
                     <p className="my-2 text-xs leading-5 text-muted-foreground">{t.distNote}</p>

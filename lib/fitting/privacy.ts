@@ -13,7 +13,7 @@
 import { NUDE_PRODUCTS, type Product } from "../products.ts";
 import { emptyFrame, type SituationFrame, type TradeoffTask, type UserField } from "./types.ts";
 import { runGates } from "./gates.ts";
-import { buildBasketOptions } from "./promotion.ts";
+import { affordableBraIds, buildBasketOptions } from "./promotion.ts";
 
 export class PrivacyViolationError extends Error {
   readonly reasons: string[];
@@ -271,20 +271,22 @@ const STRUCTURAL_EVIDENCE = ["closure", "wire", "padding", "straps", "material",
  * projection from facts, not a way for the caller to supply model state. */
 export function projectTradeoffState(task: TradeoffTask, input: SituationFrame): TradeoffState | null {
   const { frame } = parseTaskRequest(buildTaskRequest(task, input));
-  if (frame.requiresNoVisibleLines.value === true || frame.canReachBackClosure.value === null
-    || frame.needsNudeColourway.value === null) return null;
-  const eligible = runGates(frame).eligibleBraIds;
-  let products = NUDE_PRODUCTS.filter(p => eligible.includes(p.id));
-  if (frame.quantityIntent.value !== null && frame.matchingSetDesired.value !== null && frame.budgetMaxTwd.value !== null) {
-    const affordable = new Set(buildBasketOptions(frame).map(b => b.braId));
-    products = products.filter(p => affordable.has(p.id));
-  }
+  // Code rules out only what is impossible (hard blockers). Styles still held
+  // open by a question, or by a must-have no test can prove, stay candidates:
+  // JEV may compare their construction, and the card still says it needs her
+  // answer. An excluded style never reaches JEV.
+  const run = runGates(frame);
+  const candidates = [...run.eligibleBraIds, ...run.openBraIds];
+  let products = NUDE_PRODUCTS.filter(p => candidates.includes(p.id));
+  const affordable = affordableBraIds(frame, candidates);
+  if (affordable) products = products.filter(p => affordable.has(p.id));
   const contextFrame = emptyFrame();
   contextFrame.priority = frame.priority;
   contextFrame.outerGarment = frame.outerGarment;
   let baskets: readonly ProjectedBasket[] | undefined;
   if (task === "style_tradeoff") {
-    if (!frame.priority.value || frame.priority.value === "not_stated" || products.length < 2) return null;
+    // "No particular preference" still gets a comparison; JEV sees not_stated.
+    if (!frame.priority.value || products.length < 2) return null;
   } else {
     if (frame.basketPriority.value !== "construction_balance" || !frame.priority.value || frame.priority.value === "not_stated") return null;
     const options = buildBasketOptions(frame).filter(b => !b.needsReview);
