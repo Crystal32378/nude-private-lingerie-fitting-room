@@ -81,7 +81,7 @@ const NOT_HYDRATED = () =>
  * ------------------------------------------------------------------ */
 
 /**
- * The full construction detail for all nine pieces. The catalogue grid on
+ * The full construction detail for all pieces. The catalogue grid on
  * screen shows only name, Chinese name and price; wire, cup, padding, straps,
  * closure and the structure notes live one navigation deeper. This returns all
  * of it in a single call, which is what lets an agent answer a question like
@@ -142,7 +142,7 @@ export function getPiece(input: { pieceId?: unknown }) {
   if (!p) {
     return fail(
       "UNKNOWN_PIECE",
-      "No such piece. Call nude.list_pieces for the nine valid pieceIds.",
+      "No such piece. Call nude.list_pieces for the valid pieceIds.",
       false,
       { pieceId }
     );
@@ -243,7 +243,7 @@ export async function tryOnPiece(input: { pieceId?: unknown; colour?: unknown })
   if (!piece) {
     return fail(
       "UNKNOWN_PIECE",
-      "No such piece. Call nude.list_pieces for the nine valid pieceIds.",
+      "No such piece. Call nude.list_pieces for the valid pieceIds.",
       false,
       { pieceId }
     );
@@ -412,7 +412,7 @@ export async function prepareFittingRoom(input: {
   if (unknown.length > 0) {
     return fail(
       "UNKNOWN_PIECE",
-      "No such piece. Call nude.list_pieces for the nine valid pieceIds.",
+      "No such piece. Call nude.list_pieces for the valid pieceIds.",
       false,
       { unknownPieceIds: unknown }
     );

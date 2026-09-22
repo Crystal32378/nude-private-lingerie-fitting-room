@@ -46,7 +46,7 @@ export const unknownUser = <T>(): UserField<T> => ({ value: null, provenance: "u
 
 export type OuterGarment = "thin_fitted" | "thick_or_loose" | "other" | "not_stated";
 export type WearDuration = "under_4" | "4_to_8" | "over_8" | "not_stated";
-export type Priority = "comfort" | "shaping" | "balanced" | "not_stated";
+export type Priority = "comfort" | "shaping" | "balanced" | "movement" | "not_stated";
 export type ReceiveMethod = "pickup" | "delivery";
 export type PantySize = "S" | "M" | "L";
 

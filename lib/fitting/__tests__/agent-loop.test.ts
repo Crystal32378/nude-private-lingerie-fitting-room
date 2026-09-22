@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { emptyFrame, type SituationFrame } from "../types.ts";
 import { decide, planNextAction, recommendStyles } from "../decide.ts";
 import { buildBasketOptions, buildBudgetComparison } from "../promotion.ts";
-import { buildTaskRequest, parseTaskRequest, projectTradeoffState, assertHobbySafe } from "../privacy.ts";
+import { buildTaskRequest, buildTradeoffPayload, parseTaskRequest, projectTradeoffState, assertHobbySafe } from "../privacy.ts";
 import { evaluateTradeoff, type JevTransport } from "../jev.ts";
 import { mentionsDailyRotation } from "../questions.ts";
 
@@ -46,17 +46,23 @@ test("only one eligible style needs no model; answered unknown is not asked fore
   assert.equal(planNextAction(f).kind, "recommend");
 });
 
-test("a hard no-visible-lines requirement remains unknown; no model can certify it", () => {
+test("a hard no-visible-lines requirement remains unknown; JEV compares but cannot certify it", () => {
   const f = frame({ requiresNoVisibleLines: c(true) });
   assert.equal(decide(f).bestFitCount, 0);
-  assert.equal(projectTradeoffState("style_tradeoff", f), null);
+  // Held open, not excluded: construction trade-offs may still be compared...
+  const state = projectTradeoffState("style_tradeoff", f)!;
+  assert.ok(state.products.length >= 2);
+  // ...but the contract forbids judging visibility, and every card stays "needs your answer".
+  assert.match(buildTradeoffPayload(state).questions[`style_${state.products[0].id}`].instructions, /visibility through a shirt/);
+  assert.ok(decide(f).items.filter(i => i.bucket !== "not_a_fit").every(i => i.bucket === "check_with_you"));
 });
 
 test("unresolved confirmed operation restrictions never silently pass", () => {
   for (const field of ["canRaiseArmsOverhead", "canPerformFineMotorPinch"] as const) {
     const f = frame({ [field]: c(false) });
     assert.equal(decide(f).bestFitCount, 0);
-    assert.equal(projectTradeoffState("style_tradeoff", f), null);
+    // Still open, so JEV may compare them; none becomes best fit.
+    assert.ok(projectTradeoffState("style_tradeoff", f));
   }
   assert.equal(decide(frame({ canReachBackClosure: { value: null, provenance: "confirmed" } })).bestFitCount, 0);
 });
@@ -104,14 +110,23 @@ test("style task sends one batch of Choice questions and preserves the actual ch
   assert.ok(result.judgments.every(j => j.choice === "lower_priority" && j.status === "judged"));
 });
 
-test("missing evidence/irrelevant preferences/rules-only tasks do not reach transport", async () => {
+test("rules-only basket tasks do not reach transport; no stated preference still gets a style comparison", async () => {
   const f = frame({ priority: c("not_stated"), basketPriority: c("lowest_total") });
-  for (const task of ["style_tradeoff", "basket_tradeoff"] as const) {
-    let calls = 0;
-    const result = await evaluateTradeoff(buildTaskRequest(task, f), async (...args) => { calls++; return fake(...args); });
-    assert.equal(result.status, "skipped");
-    assert.equal(calls, 0);
-  }
+  let calls = 0;
+  const basket = await evaluateTradeoff(buildTaskRequest("basket_tradeoff", f), async (...args) => { calls++; return fake(...args); });
+  assert.equal(basket.status, "skipped");
+  assert.equal(calls, 0);
+  const style = await evaluateTradeoff(buildTaskRequest("style_tradeoff", f), async (...args) => { calls++; return fake(...args); });
+  assert.equal(style.status, "complete");
+  assert.equal(calls, 1);
+});
+
+test("styles excluded by a hard blocker never reach JEV", () => {
+  const f = frame({ needsNudeColourway: c(true) });
+  const state = projectTradeoffState("style_tradeoff", f)!;
+  const excluded = decide(f).items.filter(i => i.bucket === "not_a_fit").map(i => i.productId);
+  assert.ok(excluded.length > 0);
+  assert.ok(state.products.every(p => !excluded.includes(p.id)));
 });
 
 test("basket prices and quantity come from code, not the request or JEV", async () => {

@@ -26,8 +26,8 @@ const QUESTIONS_EN: Record<string, QText> = {
     why: "This answer changes the most options — back-clasp styles may come back into view.",
     choices: { true: "Yes", false: "No", null: "Not sure" } },
   q_overhead: { ask: "Is raising your arms above your head difficult?", choices: { true: "Not difficult", false: "Difficult", null: "Not sure" } },
-  q_overhead_pass: { ask: "One style has a halter neck that doesn't unclip, so it goes on over your head. Is that OK for you?",
-    why: "It fastens at the front, but the neck loop can't open, so your head still has to go through. Only you can answer this.",
+  q_overhead_pass: { ask: "Some styles go on over your head — a halter neck that doesn't unclip, or a pull-on style with no clasp. Is that OK for you?",
+    why: "These need no back clasp, but your head still has to go through. Only you can answer this.",
     choices: { true: "Yes", false: "I can't", null: "Not sure" } },
   q_pinch: { ask: "Can you pinch and line up a small hook with both hands?", choices: { true: "Yes", false: "That's hard", null: "Not sure" } },
   q_garment: { ask: "Is the white shirt fitted and thin, or looser and thicker?",
@@ -35,7 +35,7 @@ const QUESTIONS_EN: Record<string, QText> = {
   q_duration: { ask: "Roughly how long will you wear it that day?",
     choices: { '"under_4"': "Under 4 hours", '"4_to_8"': "4 to 8 hours", '"over_8"': "Over 8 hours" } },
   q_priority: { ask: "What matters more this time?",
-    choices: { '"comfort"': "Comfort", '"shaping"': "Shaping", '"balanced"': "Both — a balance", '"not_stated"': "No particular preference" } },
+    choices: { '"comfort"': "Comfort", '"shaping"': "Shaping", '"balanced"': "Both — a balance", '"movement"': "Moving freely, staying put", '"not_stated"': "No particular preference" } },
   q_nude: { ask: "Do you need a nude shade?", choices: { true: "Yes", false: "Not necessarily", null: "Not sure" } },
   q_lines: { ask: "Is \"no visible lines at all\" a must this time?",
     why: "Nude and seamless are different things. There's no test under a thin white shirt yet, so seamless can't be promised.",
@@ -78,7 +78,9 @@ export function reasonText(reason: { text: string; field: string }, lang: Lang):
   const inner = reason.text.match(/（(.*)）/)?.[1];
   const withInner = (s: string) => inner ? `${s} (${inner})` : s;
   switch (reason.field) {
-    case "closure": return reason.text.startsWith("前扣") ? "Front closure — no reaching behind" : withInner("Back closure");
+    case "closure": return reason.text.startsWith("前扣") ? "Front closure — no reaching behind"
+      : reason.text.startsWith("無背扣，直接") ? "No clasp — pulls on"
+      : reason.text.startsWith("無背扣") ? "No clasp, but it goes on over the head" : withInner("Back closure");
     case "wire": return reason.text === "無鋼圈" ? "Wire-free" : "Soft underwire";
     case "colors": case "colours": return reason.text.startsWith("有裸色") ? withInner("Has a nude shade") : withInner("No nude shade");
     case "straps": return withInner("Halter neck that doesn't unclip — goes on over the head");
@@ -150,6 +152,7 @@ export const UI = {
     basketDistNote: "Prototype judgment: compares trade-offs for your confirmed needs, not a guarantee of savings or fit.",
     basketUndecided: " It can't yet tell which combination fits your preferences better.",
     insufficient: "Not enough evidence", candidate: "Candidate combination",
+    basketWaiting: "Some styles are still waiting on your answer above, so we can't total a set yet. Nothing has been ruled out.",
     noBasket: "At this quantity, no combination meets both your conditions and the whole-set budget. You can edit your answers; we never reduce the quantity or add styles that don't fit.",
     draftSet: "Set draft, pending brand check", jevSuggests: "JEV suggests comparing this one first",
     ruleAgrees: "Your style preference and the lowest total agree", lowest: "Lowest activity-price total right now", another: "Another combination that fits",
@@ -159,11 +162,14 @@ export const UI = {
     basisLine: (pre: number, count: number, tier: string, fin: number) => `List total ${nt(pre)}. ${count} designated ${count === 1 ? "item" : "items"}, ${tier} applied, official activity price ${nt(fin)}.`,
     basisSource: "From the official public promotion page (recorded Sep 21, 2026). Offer ends Oct 16, 2026 at 8:00 AM (Taipei time); not a live lookup. Member, credit-card and points offers need a site login or are confirmed at checkout.",
     tier: { none: "list price (no tier reached, or the offer has ended)", tier_1_90: "10% off", tier_3_70: "30% off", tier_5_50: "50% off" } as Record<string, string>,
+    viewed: "You looked at this in the showroom",
     kept: "Kept", keepDraft: "Keep draft, check with the brand", chooseThis: "I'd choose this one",
     heldTitle: "Your choice is saved. Nothing has been ordered.",
     heldDraft: "The set details still need brand confirmation. ", heldGo: "You can go to the official product page and decide. ",
     heldTotal: (n: number) => `Official activity-price total ${nt(n)}; stock, shipping and member, card or points offers are confirmed in the site cart.`,
     sizeLabel: "Please confirm your brief size from the official chart", sizeNone: "Not chosen",
+    fxNote: (rate: number, date: string) => `US$ amounts are approximate, converted at NT$${rate} = US$1 (Bank of Taiwan spot rate, ${date}). Prices are charged in NT$ at checkout.`,
+    shippingNote: "Ships from Taiwan. Free shipping over NT$3,000 in Asia, NT$5,000 to Europe and the Americas; 7–10 business days. Overseas orders can't be returned.",
     footer: "First, we understand what matters to you. Then we compare product evidence and explain the trade-offs. You make the final decision.",
     price: {
       eyebrow: "After the recommendation, the price", title: "So, what would this cost?",
@@ -228,6 +234,7 @@ export const UI = {
     basketDistNote: "Prototype judgment：比較已確認需求的取捨，不是省錢或合適程度的保證。",
     basketUndecided: "目前還無法判定哪組更符合偏好。",
     insufficient: "證據不足", candidate: "候選組合",
+    basketWaiting: "有些款式還在等妳回答上面的問題，所以暫時還不能計算整組金額。目前沒有任何款式被排除。",
     noBasket: "目前這個數量，沒有同時通過條件與整組預算的組合。可以修改條件；我們不會自動減少數量或加入不合的款式。",
     draftSet: "配套草稿，待品牌核對", jevSuggests: "JEV 建議優先比較這組",
     ruleAgrees: "款式偏好與最低總額一致", lowest: "目前活動價合計最低", another: "另一個合格組合",
@@ -237,11 +244,14 @@ export const UI = {
     basisLine: (pre: number, count: number, tier: string, fin: number) => `原價合計 NT$${pre.toLocaleString("zh-TW")}。指定商品 ${count} 件，套用${tier}，官網活動價 NT$${fin.toLocaleString("zh-TW")}。`,
     basisSource: "依官網公開活動頁（記錄日期 2026-09-21），優惠至 2026/10/16 08:00 截止（台北時間），非即時查詢。會員、信用卡、點數等優惠需登入官網或於結帳時確認。",
     tier: { none: "原價（未達級距或活動已結束）", tier_1_90: "一件9折", tier_3_70: "三件7折", tier_5_50: "五件5折" } as Record<string, string>,
+    viewed: "妳在展示間看過這件",
     kept: "已保留這組", keepDraft: "保留草稿，向品牌確認", chooseThis: "我想選這組",
     heldTitle: "已保留妳的選擇，尚未下單。",
     heldDraft: "配套資料仍需品牌確認。", heldGo: "可以前往官方商品頁自行決定。",
     heldTotal: (n: number) => `官網活動價合計 NT$${n.toLocaleString("zh-TW")}；庫存、運費與會員、信用卡、點數等結帳優惠以官網購物車為準。`,
     sizeLabel: "依官方對照，請自行確認內褲尺碼", sizeNone: "尚未選擇",
+    fxNote: (_rate: number, _date: string) => "",
+    shippingNote: "",
     footer: "先懂妳的需求，再比較商品內容，提供方案取捨。最後，由妳決定。",
     price: {
       eyebrow: "推薦後，先看金額", title: "好，這樣買要多少錢？",

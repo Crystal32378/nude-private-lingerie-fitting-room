@@ -39,8 +39,8 @@ export const QUESTIONS: Question[] = [
     ask: "把手舉高過頭，對妳來說困難嗎？",
     choices: [{ label: "不困難", value: true }, { label: "困難", value: false }, { label: "不確定", value: null }] },
   { id: "q_overhead_pass", field: "canPassOverHead", stage: "access",
-    ask: "有一件是繞頸不可拆的設計，要從頭套下去。這樣妳可以嗎？",
-    why: "這件從前面扣，但頸圈不能拆開，所以頭仍然要穿過去。只有妳能回答這一題。",
+    ask: "有些款式要從頭套下去穿（繞頸不可拆，或無背扣的套頭款）。這樣妳可以嗎？",
+    why: "這幾件都不用扣背扣，但頭仍然要穿過去。只有妳能回答這一題。",
     choices: YN("可以", "沒辦法") },
   { id: "q_pinch", field: "canPerformFineMotorPinch", stage: "access",
     ask: "用兩隻手捏住小扣環對齊，對妳來說可以嗎？",
@@ -62,11 +62,12 @@ export const QUESTIONS: Question[] = [
       { label: "超過 8 小時", value: "over_8" },
     ] },
   { id: "q_priority", field: "priority", stage: "occasion",
-    ask: "出差時更重視整天舒適，還是希望胸型更集中俐落？",
+    ask: "這次更重視什麼？",
     choices: [
       { label: "舒適", value: "comfort" },
       { label: "塑形", value: "shaping" },
       { label: "都要，平衡就好", value: "balanced" },
+      { label: "要能活動、穩定不晃", value: "movement" },
     ] },
 
   // ---- 3. appearance ----
@@ -151,6 +152,17 @@ export function hintsFromUtterance(text: string): string[] {
   if (has("預算", "元", "NT", "$")) hit.push("q_budget");
   if (has("成套", "內褲", "一套", "matching", "brief", "panty", "set")) hit.push("q_set", "q_size");
   return [...new Set(hit)];
+}
+
+/**
+ * Client-side only, same boundary as hintsFromUtterance: the text is never sent.
+ * True when her own words say she will be moving. It only pre-selects the matching
+ * priority option in the confirm step; she still confirms or changes it.
+ */
+export function mentionsMovement(text: string): boolean {
+  const lower = text.toLowerCase();
+  return ["運動", "健身", "瑜伽", "跑步", "爬山", "舞", "活動量", "動來動去",
+    "sport", "gym", "workout", "yoga", "run", "hiking", "dance", "active"].some((w) => lower.includes(w));
 }
 
 /**

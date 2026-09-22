@@ -12,7 +12,7 @@
  * identical; the results do not.
  */
 import { NUDE_PRODUCTS } from "../products.ts";
-import { PANTIES } from "./panties.ts";
+import { PANTIES, pairsWithBra } from "./panties.ts";
 import { runGates } from "./gates.ts";
 import { type SituationFrame } from "./types.ts";
 
@@ -30,8 +30,8 @@ export const PROMO = {
    *  price, never a claimed checkout payment. */
   termsVerified: true,
   sourceUrl: "https://www.nude4underwear.com/promotions/6a28e5b90ac3867ee4dd42e4",
-  /** Corpus items that appear in the official 指定商品 list (read 2026-09-21). */
-  eligibleIds: ["nude-01", "nude-02", "nude-03", "nude-04", "nude-05", "nude-06", "nude-07", "nude-08", "nude-09",
+  /** Corpus items that appear in the official 指定商品 list (read 2026-09-21; nude-10 confirmed on the list the same day). */
+  eligibleIds: ["nude-01", "nude-02", "nude-03", "nude-04", "nude-05", "nude-06", "nude-07", "nude-08", "nude-09", "nude-10",
     "panty-01", "panty-02", "panty-03", "panty-04", "panty-05", "panty-06", "panty-07", "panty-08"],
   tiers: [
     { id: "tier_5_50", minItems: 5, rate: 0.5 },
@@ -250,6 +250,19 @@ export function buildBudgetComparison(basket: BasketOption, now = new Date()): B
 /** A small, explicit set of same-style baskets. No added units, inferred sizes,
  * member price, or excluded items. Explore the full eligible corpus before cap. */
 export function buildBasketOptions(frame: SituationFrame, now = new Date()): BasketOption[] {
+  return basketsFor(frame, runGates(frame).eligibleBraIds, now);
+}
+
+/** Bras (eligible or still held open by a question) that fit the confirmed
+ * whole-set ceiling. Used only to decide what JEV may compare; never shown as
+ * a purchasable basket, so an open style cannot be kept before she answers. */
+export function affordableBraIds(frame: SituationFrame, braIds: string[], now = new Date()): Set<string> | null {
+  const { quantityIntent: q, matchingSetDesired: m, budgetMaxTwd: b } = frame;
+  if (q.value === null || m.value === null || b.value === null) return null;
+  return new Set(basketsFor(frame, braIds, now).map(o => o.braId));
+}
+
+function basketsFor(frame: SituationFrame, braIds: string[], now: Date): BasketOption[] {
   const { quantityIntent: quantity, matchingSetDesired: matching, budgetMaxTwd: budget } = frame;
   if (quantity.provenance !== "confirmed" || ![1, 2, 3].includes(quantity.value ?? 0)
     || matching.provenance !== "confirmed" || typeof matching.value !== "boolean"
@@ -257,10 +270,10 @@ export function buildBasketOptions(frame: SituationFrame, now = new Date()): Bas
   const qty = quantity.value!;
   const gates = runGates(frame);
   const options: BasketOption[] = [];
-  for (const braId of gates.eligibleBraIds) {
+  for (const braId of braIds) {
     const bra = NUDE_PRODUCTS.find(p => p.id === braId)!;
     const partners = matching.value
-      ? PANTIES.filter(p => p.pairsWith.includes(braId) && gates.eligiblePantyIds.includes(p.id)) : [null];
+      ? PANTIES.filter(p => pairsWithBra(p, braId) && gates.eligiblePantyIds.includes(p.id)) : [null];
     for (const panty of partners) {
       const lines: BasketLine[] = [{ id: bra.id, name: bra.nameZh, price: bra.price, qty, promotionEligible: promotionEligibility(bra.id) }];
       const unknowns: string[] = [];

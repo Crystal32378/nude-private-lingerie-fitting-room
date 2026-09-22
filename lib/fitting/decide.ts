@@ -15,7 +15,9 @@ export const MAX_BEST_FIT = 3;
 
 /** Fields we may quote. A comfort claim with no field behind it is not allowed. */
 function factReasons(p: Product): { text: string; field: string }[] {
-  const out = [{ text: p.closure.startsWith("front") ? "前扣，不需背手" : `背扣（${p.closure}）`, field: "closure" }];
+  const closure = p.closure.startsWith("front") ? "前扣，不需背手"
+    : p.closure.startsWith("none") ? "無背扣，直接套上" : `背扣（${p.closure}）`;
+  const out = [{ text: closure, field: "closure" }];
   out.push({ text: p.wire === "wireless" ? "無鋼圈" : "軟鋼圈", field: "wire" });
   if (/裸|膚/.test(p.colors.join(""))) out.push({ text: `有裸色（${p.colors.join("、")}）`, field: "colors" });
   out.push({ text: `NT$${p.price}`, field: "price" });
@@ -86,7 +88,7 @@ function explain(run: GateRun, frame: SituationFrame): string[] {
     if (q) out.push(`回答「${q.ask}」會改變最多選項`);
   }
   if (run.eligibleBraIds.length === 0) {
-    out.push("目前這九件裡沒有同時符合妳所有條件的。這不是錯誤，是這批商品的真實狀況。");
+    out.push(`目前這 ${total} 件裡沒有同時符合妳所有條件的。這不是錯誤，是這批商品的真實狀況。`);
   }
   return out;
 }
@@ -146,7 +148,9 @@ export function planNextAction(frame: SituationFrame, attempted = new Set<string
 
 /** Choice semantics stay intact. "Lower priority" never removes a fit-compatible
  * product; absent evidence never creates a confident model recommendation. */
-export function recommendStyles(frame: SituationFrame, result?: TradeoffResult): ResultItem[] {
+/** `viewed`: pieces she opened in the showroom. Among equal judgments they come
+ * before price order, the way a piece she picked up leads the conversation. */
+export function recommendStyles(frame: SituationFrame, result?: TradeoffResult, viewed: readonly string[] = []): ResultItem[] {
   const items = decide(frame).items;
   const rank: Record<string, number> = { prefer: 0, consider: 1, lower_priority: 3 };
   const choices = new Map(result?.task === "style_tradeoff" && result.status === "complete"
@@ -159,7 +163,8 @@ export function recommendStyles(frame: SituationFrame, result?: TradeoffResult):
     const ja = choices.get(a.productId), jb = choices.get(b.productId);
     const ar = ja?.status === "judged" ? rank[ja.choice] ?? 2 : 2;
     const br = jb?.status === "judged" ? rank[jb.choice] ?? 2 : 2;
-    return ar - br || getProductById(a.productId)!.price - getProductById(b.productId)!.price
+    const va = viewed.includes(a.productId) ? 0 : 1, vb = viewed.includes(b.productId) ? 0 : 1;
+    return ar - br || va - vb || getProductById(a.productId)!.price - getProductById(b.productId)!.price
       || a.productId.localeCompare(b.productId);
   }).slice(0, MAX_BEST_FIT);
 }
