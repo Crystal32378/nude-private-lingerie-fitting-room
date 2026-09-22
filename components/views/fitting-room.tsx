@@ -277,7 +277,7 @@ export function FittingRoomView() {
             </p>)}
             {basketResult.provenance?.receiptId && <p className="mt-1 break-all text-xs text-muted-foreground">{t.receipt(basketResult.provenance.receiptId, basketResult.provenance.returnedModel)}</p>}
           </details>}
-          {baskets.length === 0 ? <p className="mt-6 border border-border bg-card p-5 leading-7">{t.noBasket}</p>
+          {baskets.length === 0 ? <p className="mt-6 border border-border bg-card p-5 leading-7">{decisions.items.some(i => i.bucket === "check_with_you") ? t.basketWaiting : t.noBasket}</p>
             : <div className="mt-6 space-y-4">{visibleBaskets.map(basket => <article key={basket.id} className="border border-border bg-card p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-xl">
