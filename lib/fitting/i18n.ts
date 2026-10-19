@@ -169,7 +169,8 @@ export const UI = {
     heldTotal: (n: number) => `Official activity-price total ${nt(n)}; stock, shipping and member, card or points offers are confirmed in the site cart.`,
     sizeLabel: "Please confirm your brief size from the official chart", sizeNone: "Not chosen",
     fxNote: (rate: number, date: string) => `US$ amounts are approximate, converted at NT$${rate} = US$1 (Bank of Taiwan spot rate, ${date}). Prices are charged in NT$ at checkout.`,
-    shippingNote: "Ships from Taiwan. Free shipping over NT$3,000 in Asia, NT$5,000 to Europe and the Americas; 7–10 business days. Overseas orders can't be returned.",
+    shippingNote: "Ships from Taiwan. Free shipping over NT$3,300 in Asia, NT$5,500 to the US, Canada, Europe and Australia; 7–10 business days. Overseas orders are not eligible for ordinary returns. Returns for defective items and applicable statutory rights remain unaffected.",
+    returnsPolicyLabel: "Returns policy",
     footer: "First, we understand what matters to you. Then we compare product evidence and explain the trade-offs. You make the final decision.",
     price: {
       eyebrow: "After the recommendation, the price", title: "So, what would this cost?",
@@ -226,6 +227,7 @@ export const UI = {
     jevPending: "JEV 判斷中；商品事實與價格仍由程式核對。",
     jevNone: "JEV 這次沒有提供判斷，未採用任何模型結果；此款依已確認條件列出。",
     viewProduct: "到官網選尺寸與顏色",
+    returnsPolicyLabel: "退換貨政策",
     whyExcluded: "為什麼有些款式沒列入？",
     seamlessNote: "裸色不代表薄白襯衫下無痕；目前沒有這項實測。庫存與到貨時間也尚未確認。",
     basketTitle: "怎麼組合，符合妳這次的需要",

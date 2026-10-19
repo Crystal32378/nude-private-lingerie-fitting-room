@@ -321,7 +321,7 @@ export function FittingRoomView() {
         </section>
       </>}
     </main>
-    {lang === "en" && <p className="mx-auto max-w-3xl px-5 pb-6 text-xs leading-5 text-muted-foreground">{t.fxNote(FX.twdPerUsd, FX.observedOn)}<br />{t.shippingNote}</p>}
+    {lang === "en" && <p className="mx-auto max-w-3xl px-5 pb-6 text-xs leading-5 text-muted-foreground">{t.fxNote(FX.twdPerUsd, FX.observedOn)}<br />{t.shippingNote}{" "}<a className="underline underline-offset-4" href="https://www.nude4underwear.com/about/policy" target="_blank" rel="noreferrer">{t.returnsPolicyLabel}</a></p>}
     <footer className="border-t border-border px-5 py-8 text-center text-sm leading-7 text-muted-foreground">{t.footer}</footer>
   </div>;
 }
