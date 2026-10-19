@@ -10,7 +10,7 @@ import { byField, byId, hintsFromUtterance, mentionsDailyRotation, mentionsMovem
 import { readViewed } from "@/lib/fitting/viewed";
 import { askText, productName, CHOICE_LABEL, choiceText, noteText, reasonText, UI, whyText, type Lang } from "@/lib/fitting/i18n";
 import { decide, planNextAction, recommendStyles } from "@/lib/fitting/decide";
-import { buildBasketOptions, buildBudgetComparison, type BudgetComparison } from "@/lib/fitting/promotion";
+import { buildBasketOptions, buildBudgetComparison, isCampaignLive, type BudgetComparison } from "@/lib/fitting/promotion";
 import { buildTaskRequest, projectTradeoffState, type TaskField } from "@/lib/fitting/privacy";
 import { PANTY_SIZE_CHART } from "@/lib/fitting/panties";
 import { approxUsd, FX } from "@/lib/fitting/fx";
@@ -276,7 +276,7 @@ export function FittingRoomView() {
 
         <section className="mt-12 border-t border-border pt-8" aria-labelledby="basket-title">
           <h2 id="basket-title" className="text-2xl">{t.basketTitle}</h2>
-          <p className="mt-3 text-sm leading-7 text-muted-foreground">{t.basketIntro(frame.quantityIntent.value!, hasSet)}</p>
+          <p className="mt-3 text-sm leading-7 text-muted-foreground">{t.basketIntro(frame.quantityIntent.value!, hasSet, isCampaignLive(new Date()))}</p>
           {basketResult?.status === "complete" && <details className="mt-4 text-sm">
             <summary className="cursor-pointer py-2 underline underline-offset-4">{t.basketDist}</summary>
             <p className="my-2 text-xs leading-5 text-muted-foreground">{t.basketDistNote}{!preferredBasket ? t.basketUndecided : ""}</p>

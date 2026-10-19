@@ -58,9 +58,13 @@ test("Tokyo case: explanations are English, brand values are kept, and results a
 });
 
 test("English offer copy keeps NT$ and the official Taipei cut-off", () => {
-  const intro = UI.en.basketIntro(1, true);
-  assert.ok(intro.includes("Offer ends Oct 16, 2026 at 8:00 AM (Taipei time)"));
-  assert.ok(UI.en.basisSource.includes("Offer ends Oct 16, 2026 at 8:00 AM (Taipei time)"));
+  const intro = UI.en.basketIntro(1, true, true);
+  assert.ok(intro.includes("until Nov 30, 2026, 11:59 PM Taipei time"));
+  assert.ok(UI.en.basisSource.includes("Nov 30, 2026, 11:59 PM (Taipei time)"));
+  // Outside the campaign the copy must not claim a discount was applied.
+  assert.ok(!UI.en.basketIntro(1, true, false).includes("applied"));
+  assert.ok(!UI.zh.basketIntro(1, true, false).includes("已套用"));
+  assert.ok(UI.zh.basketIntro(2, false, true).includes("已套用"));
   assert.ok(UI.en.price.avg(1230).startsWith("NT$1,230"));
   assert.equal(UI.en.footer, "First, we understand what matters to you. Then we compare product evidence and explain the trade-offs. You make the final decision.");
 });

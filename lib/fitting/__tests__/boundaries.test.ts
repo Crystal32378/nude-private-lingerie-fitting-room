@@ -141,9 +141,9 @@ test("SET-BUDGET a simulation below the ceiling cannot mask an over-budget baske
     { id: "nude-09", name: "內衣", price: 1880, promotionEligible: "yes", qty: 3 },
     { id: "panty-02", name: "內褲", price: 580, promotionEligible: "yes", qty: 3 },
   ];
-  const at = new Date("2026-09-25T00:00:00+08:00");
-  // Designated items: the public activity price is what the ceiling checks.
-  assert.equal(checkSetBudget(calculate(lines, at), 5000).defaultTotal, 3690);
+  const at = new Date("2026-10-25T12:00:00+08:00");
+  // Designated items: the public activity price (6 items, 60% off) is what the ceiling checks.
+  assert.equal(checkSetBudget(calculate(lines, at), 5000).defaultTotal, 2952);
   // Eligibility not on the official list: no discount can mask the overshoot.
   const calc = calculate(lines.map(l => ({ ...l, promotionEligible: "unknown" as const })), at);
   const check = checkSetBudget(calc, 5000);

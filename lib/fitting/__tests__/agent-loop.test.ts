@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emptyFrame, type SituationFrame } from "../types.ts";
 import { decide, planNextAction, recommendStyles } from "../decide.ts";
-import { buildBasketOptions, buildBudgetComparison } from "../promotion.ts";
+import { buildBasketOptions, buildBudgetComparison, PROMO } from "../promotion.ts";
 import { buildTaskRequest, buildTradeoffPayload, parseTaskRequest, projectTradeoffState, assertHobbySafe } from "../privacy.ts";
 import { evaluateTradeoff, type JevTransport } from "../jev.ts";
 import { mentionsDailyRotation } from "../questions.ts";
@@ -131,12 +131,18 @@ test("styles excluded by a hard blocker never reach JEV", () => {
 
 test("basket prices and quantity come from code, not the request or JEV", async () => {
   const f = frame({ quantityIntent: c(2) });
-  const options = buildBasketOptions(f);
+  const at = new Date("2026-10-25T12:00:00+08:00");
+  const options = buildBasketOptions(f, at);
   assert.ok(options.length > 1);
   for (const b of options) {
     assert.equal(b.lines.filter(l => l.id.startsWith("nude-")).reduce((n, l) => n + l.qty, 0), 2);
     // Public activity price from the deterministic engine, never from the request or JEV.
-    assert.equal(b.calculation.defaultTotal, Math.round(b.lines.reduce((n, l) => n + l.price * l.qty, 0) * 0.9));
+    const pre = b.lines.reduce((n, l) => n + l.price * l.qty, 0);
+    const designated = b.lines.filter(l => (PROMO.eligibleIds as readonly string[]).includes(l.id));
+    const count = designated.reduce((n, l) => n + l.qty, 0);
+    const rate = count >= 6 ? 0.4 : count >= 4 ? 0.6 : count >= 2 ? 0.8 : 1;
+    const disc = designated.reduce((n, l) => n + l.price * l.qty, 0);
+    assert.equal(b.calculation.defaultTotal, pre - disc + Math.round(disc * rate));
     assert.equal(b.calculation.defaultTotal, b.calculation.finalTotal);
     assert.ok(b.budget.withinBudget);
   }
@@ -147,23 +153,24 @@ test("basket prices and quantity come from code, not the request or JEV", async 
 
 test("Tokyo one-set comparison keeps original total separate from conditional simulations", () => {
   const f = frame({ matchingSetDesired: c(true), quantityIntent: c(1) });
-  const basket = buildBasketOptions(f).find(option => option.braId === "nude-09" && option.pantyId === "panty-02");
+  const at = new Date("2026-10-25T12:00:00+08:00");
+  const basket = buildBasketOptions(f, at).find(option => option.braId === "nude-09" && option.pantyId === "panty-02");
   assert.ok(basket, "nude-09 must have its official p-02 partner");
-  const comparison = buildBudgetComparison(basket!);
+  const comparison = buildBudgetComparison(basket!, at);
   assert.deepEqual(comparison && {
     one: [comparison.oneSet.originalTotal, comparison.oneSet.conditionalSimulation, comparison.oneSet.deltaFromOneSet],
     threeBras: [comparison.threeBras.originalTotal, comparison.threeBras.conditionalSimulation, comparison.threeBras.deltaFromOneSet],
     threeSets: [comparison.threeSets.originalTotal, comparison.threeSets.conditionalSimulation, comparison.threeSets.deltaFromOneSet],
     termsVerified: comparison.termsVerified,
   }, {
-    one: [2460, 2214, 0],
-    threeBras: [5640, 3948, 1734],
-    threeSets: [7380, 3690, 1476],
+    one: [2460, 1968, 0],
+    threeBras: [5640, 4512, 2544],
+    threeSets: [7380, 2952, 984],
     termsVerified: true,
   });
   // Average per set comes from the three-set activity price; the basket itself is unchanged.
-  assert.equal(comparison!.threeSetsConditionalAveragePerSet, 1230);
-  assert.equal(basket!.calculation.defaultTotal, 2214);
+  assert.equal(comparison!.threeSetsConditionalAveragePerSet, 984);
+  assert.equal(basket!.calculation.defaultTotal, 1968);
   assert.equal(basket!.calculation.preDiscountTotal, 2460);
   assert.deepEqual(basket!.lines.map(line => line.qty), [1, 1]);
 });
