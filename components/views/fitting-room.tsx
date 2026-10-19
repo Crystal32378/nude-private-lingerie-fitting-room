@@ -39,7 +39,11 @@ export function FittingRoomView() {
   const [selected, setSelected] = useState<string | null>(null);
   const [size, setSize] = useState<string>("");
   // Presentation only. Switching never touches answers, records or selection.
-  const [lang, setLang] = useState<Lang>("en");
+  // Chinese by default for customers arriving from the official site; `?lang=en` opens English.
+  const [lang, setLang] = useState<Lang>("zh");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("lang") === "en") setLang("en");
+  }, []);
   const t = UI[lang];
   const choiceLabel = CHOICE_LABEL[lang];
 
