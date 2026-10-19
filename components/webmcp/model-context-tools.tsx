@@ -151,7 +151,7 @@ export function ModelContextTools() {
           name: "nude.list_pieces",
           title: "Browse the NUDE collection",
           description:
-            "List all nine NUDE pieces with full construction detail — wire, cup, padding, straps, closure, material, colours, sizes and structure notes. Use this to work out which pieces fit a request such as 'nude-toned and smooth under a white shirt'. Returns no image data.",
+            "List all NUDE pieces with full construction detail — wire, cup, padding, straps, closure, material, colours, sizes and structure notes. Use this to work out which pieces fit a request such as 'nude-toned and smooth under a white shirt'. Returns no image data.",
           inputSchema: noInput,
           annotations: { readOnlyHint: true, untrustedContentHint: true },
           execute: () => listPieces(),

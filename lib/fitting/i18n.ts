@@ -1,6 +1,6 @@
 /**
- * Presentation-only strings for the fitting room. English is the default; 中文 is
- * one tap away. Both languages render the SAME frame, products, prices and JEV
+ * Presentation-only strings for the fitting room. 中文 is the default; English is
+ * one tap away or opened with ?lang=en. Both languages render the SAME frame, products, prices and JEV
  * results — nothing here computes, filters or decides. Product names, prices and
  * official promotion terms stay as the brand publishes them.
  */
@@ -26,8 +26,8 @@ const QUESTIONS_EN: Record<string, QText> = {
     why: "This answer changes the most options — back-clasp styles may come back into view.",
     choices: { true: "Yes", false: "No", null: "Not sure" } },
   q_overhead: { ask: "Is raising your arms above your head difficult?", choices: { true: "Not difficult", false: "Difficult", null: "Not sure" } },
-  q_overhead_pass: { ask: "One style has a halter neck that doesn't unclip, so it goes on over your head. Is that OK for you?",
-    why: "It fastens at the front, but the neck loop can't open, so your head still has to go through. Only you can answer this.",
+  q_overhead_pass: { ask: "Some styles go on over your head — a halter neck that doesn't unclip, or a pull-on style with no clasp. Is that OK for you?",
+    why: "These need no back clasp, but your head still has to go through. Only you can answer this.",
     choices: { true: "Yes", false: "I can't", null: "Not sure" } },
   q_pinch: { ask: "Can you pinch and line up a small hook with both hands?", choices: { true: "Yes", false: "That's hard", null: "Not sure" } },
   q_garment: { ask: "Is the white shirt fitted and thin, or looser and thicker?",
@@ -35,7 +35,7 @@ const QUESTIONS_EN: Record<string, QText> = {
   q_duration: { ask: "Roughly how long will you wear it that day?",
     choices: { '"under_4"': "Under 4 hours", '"4_to_8"': "4 to 8 hours", '"over_8"': "Over 8 hours" } },
   q_priority: { ask: "What matters more this time?",
-    choices: { '"comfort"': "Comfort", '"shaping"': "Shaping", '"balanced"': "Both — a balance", '"not_stated"': "No particular preference" } },
+    choices: { '"comfort"': "Comfort", '"shaping"': "Shaping", '"balanced"': "Both — a balance", '"movement"': "Moving freely, staying put", '"not_stated"': "No particular preference" } },
   q_nude: { ask: "Do you need a nude shade?", choices: { true: "Yes", false: "Not necessarily", null: "Not sure" } },
   q_lines: { ask: "Is \"no visible lines at all\" a must this time?",
     why: "Nude and seamless are different things. There's no test under a thin white shirt yet, so seamless can't be promised.",
@@ -78,7 +78,9 @@ export function reasonText(reason: { text: string; field: string }, lang: Lang):
   const inner = reason.text.match(/（(.*)）/)?.[1];
   const withInner = (s: string) => inner ? `${s} (${inner})` : s;
   switch (reason.field) {
-    case "closure": return reason.text.startsWith("前扣") ? "Front closure — no reaching behind" : withInner("Back closure");
+    case "closure": return reason.text.startsWith("前扣") ? "Front closure — no reaching behind"
+      : reason.text.startsWith("無背扣，直接") ? "No clasp — pulls on"
+      : reason.text.startsWith("無背扣") ? "No clasp, but it goes on over the head" : withInner("Back closure");
     case "wire": return reason.text === "無鋼圈" ? "Wire-free" : "Soft underwire";
     case "colors": case "colours": return reason.text.startsWith("有裸色") ? withInner("Has a nude shade") : withInner("No nude shade");
     case "straps": return withInner("Halter neck that doesn't unclip — goes on over the head");
@@ -141,15 +143,16 @@ export const UI = {
     receipt: (id: string, model?: string) => `Receipt ${id}${model ? ` · ${model}` : ""}`,
     jevPending: "JEV is judging; product facts and prices are still checked by code.",
     jevNone: "JEV gave no judgment this time and no model result is used; this style is listed by your confirmed needs.",
-    viewProduct: "View on official site",
+    viewProduct: "Choose size & colour on the official site",
     whyExcluded: "Why are some styles not listed?",
     seamlessNote: "A nude shade doesn't mean seamless under a thin white shirt; that hasn't been tested. Stock and delivery time aren't confirmed yet.",
     basketTitle: "Combinations that fit what you need this time",
-    basketIntro: (n: number, set: boolean) => `Calculated for your confirmed ${n} ${set ? (n === 1 ? "set" : "sets") : (n === 1 ? "bra" : "bras")}, with the official public summer promotion applied (1 item 10% off, 3 items 30% off, 5 items 50% off). Offer ends Oct 16, 2026 at 8:00 AM (Taipei time). Member, credit-card and points offers may stack at checkout; the site cart decides what you pay.`,
+    basketIntro: (n: number, set: boolean, live: boolean) => `Calculated for your confirmed ${n} ${set ? (n === 1 ? "set" : "sets") : (n === 1 ? "bra" : "bras")}${live ? ", with the official Double 11 × Black Friday offer applied (designated items: 2 for 20% off, 4 for 40% off, 6 for 60% off; until Nov 30, 2026, 11:59 PM Taipei time)." : ". No promotion is running right now, so these are list prices."} Member, credit-card and points offers may stack at checkout; the site cart decides what you pay.`,
     basketDist: "View combination judgment distribution",
     basketDistNote: "Prototype judgment: compares trade-offs for your confirmed needs, not a guarantee of savings or fit.",
     basketUndecided: " It can't yet tell which combination fits your preferences better.",
     insufficient: "Not enough evidence", candidate: "Candidate combination",
+    basketWaiting: "Some styles are still waiting on your answer above, so we can't total a set yet. Other styles may already have been ruled out by your confirmed conditions.",
     noBasket: "At this quantity, no combination meets both your conditions and the whole-set budget. You can edit your answers; we never reduce the quantity or add styles that don't fit.",
     draftSet: "Set draft, pending brand check", jevSuggests: "JEV suggests comparing this one first",
     ruleAgrees: "Your style preference and the lowest total agree", lowest: "Lowest activity-price total right now", another: "Another combination that fits",
@@ -157,17 +160,20 @@ export const UI = {
     vsLowest: (d: number) => d === 0 ? "Same as the lowest total." : `${nt(d)} more than the lowest total.`,
     basis: "Price and promotion basis",
     basisLine: (pre: number, count: number, tier: string, fin: number) => `List total ${nt(pre)}. ${count} designated ${count === 1 ? "item" : "items"}, ${tier} applied, official activity price ${nt(fin)}.`,
-    basisSource: "From the official public promotion page (recorded Sep 21, 2026). Offer ends Oct 16, 2026 at 8:00 AM (Taipei time); not a live lookup. Member, credit-card and points offers need a site login or are confirmed at checkout.",
-    tier: { none: "list price (no tier reached, or the offer has ended)", tier_1_90: "10% off", tier_3_70: "30% off", tier_5_50: "50% off" } as Record<string, string>,
+    basisSource: "From the official promotion page settings (recorded Oct 19, 2026). Offer runs Oct 16, 2026, 8:00 AM to Nov 30, 2026, 11:59 PM (Taipei time); not a live lookup. Member, credit-card and points offers need a site login or are confirmed at checkout.",
+    tier: { none: "list price (no tier reached, or no offer running)", tier_2_80: "20% off", tier_4_60: "40% off", tier_6_40: "60% off" } as Record<string, string>,
+    viewed: "You looked at this in the showroom",
     kept: "Kept", keepDraft: "Keep draft, check with the brand", chooseThis: "I'd choose this one",
     heldTitle: "Your choice is saved. Nothing has been ordered.",
     heldDraft: "The set details still need brand confirmation. ", heldGo: "You can go to the official product page and decide. ",
     heldTotal: (n: number) => `Official activity-price total ${nt(n)}; stock, shipping and member, card or points offers are confirmed in the site cart.`,
     sizeLabel: "Please confirm your brief size from the official chart", sizeNone: "Not chosen",
+    fxNote: (rate: number, date: string) => `US$ amounts are approximate, converted at NT$${rate} = US$1 (Bank of Taiwan spot rate, ${date}). Prices are charged in NT$ at checkout.`,
+    shippingNote: "Ships from Taiwan. Free shipping over NT$3,000 in Asia, NT$5,000 to Europe and the Americas; 7–10 business days. Overseas orders can't be returned.",
     footer: "First, we understand what matters to you. Then we compare product evidence and explain the trade-offs. You make the final decision.",
     price: {
       eyebrow: "After the recommendation, the price", title: "So, what would this cost?",
-      intro: "Calculated with the official public summer promotion. It isn't in the cart yet — member, credit-card and points offers may stack, and the cart decides what you pay.",
+      intro: "Calculated with the official public Double 11 × Black Friday offer. It isn't in the cart yet — member, credit-card and points offers may stack, and the cart decides what you pay.",
       oneList: "One set, list price", noDiscount: "Without the promotion", oneActivity: "One set, activity price",
       oneActivityNote: (rate: string) => `One set / ${rate} / official public offer`,
       threeSets: "If you bought three sets", avg: (n: number) => `${nt(n)} per set on average (activity price)`,
@@ -175,7 +181,7 @@ export const UI = {
       caption: "List price and official activity price for one set, three bras, and three sets",
       plan: "Option", list: "List price", activity: "Official activity price", vsOne: "Compared with one set", base: "Baseline", more: (n: number) => `+${nt(n)}`,
       rows: { one_set: "One set: 1 bra + 1 brief", three_bras: "Three bras", three_sets: "Three sets: 3 bras + 3 briefs" } as Record<string, string>,
-      rate: { "原價": "list price", "九折": "10% off", "七折": "30% off", "五折": "50% off" } as Record<string, string>,
+      rate: { "原價": "list price", "八折": "20% off", "六折": "40% off", "四折": "60% off" } as Record<string, string>,
       outro: (n: number) => `Three sets can lower the average cost per set, but you'd spend ${nt(n)} more. The budget is a ceiling, not a target — spending less than planned is a good outcome. Whether to buy three is up to you.`,
       daily: (n: number) => `You mentioned this is for everyday rotation: during the offer, three sets average ${nt(n)} each, which could work as an everyday plan. The cart decides what you pay; the quantity stays as you confirmed, and we never add items for you.`,
     },
@@ -219,15 +225,16 @@ export const UI = {
     receipt: (id: string, model?: string) => `判斷收據 ${id}${model ? ` · ${model}` : ""}`,
     jevPending: "JEV 判斷中；商品事實與價格仍由程式核對。",
     jevNone: "JEV 這次沒有提供判斷，未採用任何模型結果；此款依已確認條件列出。",
-    viewProduct: "查看官方商品",
+    viewProduct: "到官網選尺寸與顏色",
     whyExcluded: "為什麼有些款式沒列入？",
     seamlessNote: "裸色不代表薄白襯衫下無痕；目前沒有這項實測。庫存與到貨時間也尚未確認。",
     basketTitle: "怎麼組合，符合妳這次的需要",
-    basketIntro: (n: number, set: boolean) => `以妳確認的 ${n} ${set ? "套" : "件內衣"} 計算，已套用官網公開的夏季採購折扣（一件9折、三件7折、五件5折，至 2026/10/16 08:00）。會員、信用卡、點數等優惠可能在結帳時再疊加，實付以官網購物車為準。`,
+    basketIntro: (n: number, set: boolean, live: boolean) => `以妳確認的 ${n} ${set ? "套" : "件內衣"} 計算${live ? "，已套用官網公開的「雙11 X 黑五」優惠（指定商品兩件8折、四件6折、六件4折，至 2026/11/30 23:59）。" : "。目前沒有進行中的優惠活動，以原價計算。"}會員、信用卡、點數等優惠可能在結帳時再疊加，實付以官網購物車為準。`,
     basketDist: "查看組合判斷分布",
     basketDistNote: "Prototype judgment：比較已確認需求的取捨，不是省錢或合適程度的保證。",
     basketUndecided: "目前還無法判定哪組更符合偏好。",
     insufficient: "證據不足", candidate: "候選組合",
+    basketWaiting: "有些款式還在等妳回答上面的問題，所以暫時還不能計算整組金額。其他款式可能已依妳確認的條件排除。",
     noBasket: "目前這個數量，沒有同時通過條件與整組預算的組合。可以修改條件；我們不會自動減少數量或加入不合的款式。",
     draftSet: "配套草稿，待品牌核對", jevSuggests: "JEV 建議優先比較這組",
     ruleAgrees: "款式偏好與最低總額一致", lowest: "目前活動價合計最低", another: "另一個合格組合",
@@ -235,17 +242,20 @@ export const UI = {
     vsLowest: (d: number) => d === 0 ? "比最低合計相同。" : `比最低合計多 NT$${d.toLocaleString("zh-TW")}。`,
     basis: "價格與活動依據",
     basisLine: (pre: number, count: number, tier: string, fin: number) => `原價合計 NT$${pre.toLocaleString("zh-TW")}。指定商品 ${count} 件，套用${tier}，官網活動價 NT$${fin.toLocaleString("zh-TW")}。`,
-    basisSource: "依官網公開活動頁（記錄日期 2026-09-21），優惠至 2026/10/16 08:00 截止（台北時間），非即時查詢。會員、信用卡、點數等優惠需登入官網或於結帳時確認。",
-    tier: { none: "原價（未達級距或活動已結束）", tier_1_90: "一件9折", tier_3_70: "三件7折", tier_5_50: "五件5折" } as Record<string, string>,
+    basisSource: "依官網活動頁設定（記錄日期 2026-10-19），優惠期間 2026/10/16 08:00 至 2026/11/30 23:59（台北時間），非即時查詢。會員、信用卡、點數等優惠需登入官網或於結帳時確認。",
+    tier: { none: "原價（未達級距或不在活動期間）", tier_2_80: "兩件8折", tier_4_60: "四件6折", tier_6_40: "六件4折" } as Record<string, string>,
+    viewed: "妳在展示間看過這件",
     kept: "已保留這組", keepDraft: "保留草稿，向品牌確認", chooseThis: "我想選這組",
     heldTitle: "已保留妳的選擇，尚未下單。",
     heldDraft: "配套資料仍需品牌確認。", heldGo: "可以前往官方商品頁自行決定。",
     heldTotal: (n: number) => `官網活動價合計 NT$${n.toLocaleString("zh-TW")}；庫存、運費與會員、信用卡、點數等結帳優惠以官網購物車為準。`,
     sizeLabel: "依官方對照，請自行確認內褲尺碼", sizeNone: "尚未選擇",
+    fxNote: (_rate: number, _date: string) => "",
+    shippingNote: "",
     footer: "先懂妳的需求，再比較商品內容，提供方案取捨。最後，由妳決定。",
     price: {
       eyebrow: "推薦後，先看金額", title: "好，這樣買要多少錢？",
-      intro: "以官網公開的夏季採購折扣計算。還沒放進購物車結帳，會員、信用卡、點數等優惠可能再疊加，實付以購物車為準。",
+      intro: "以官網公開的「雙11 X 黑五」優惠計算。還沒放進購物車結帳，會員、信用卡、點數等優惠可能再疊加，實付以購物車為準。",
       oneList: "一套原價", noDiscount: "不含活動折扣", oneActivity: "一套活動價",
       oneActivityNote: (rate: string) => `一套／${rate}／官網公開折扣`,
       threeSets: "如果改買三套", avg: (n: number) => `平均每套 NT$${n.toLocaleString("zh-TW")}（活動價）`,
@@ -253,9 +263,36 @@ export const UI = {
       caption: "一套、三件內衣、三套的原價與官網活動價",
       plan: "方案", list: "原價", activity: "官網活動價", vsOne: "與一套相比", base: "基準", more: (n: number) => `多 NT$${n.toLocaleString("zh-TW")}`,
       rows: { one_set: "一套：1 件內衣＋1 件內褲", three_bras: "三件內衣", three_sets: "三套：3 件內衣＋3 件內褲" } as Record<string, string>,
-      rate: { "原價": "原價", "九折": "九折", "七折": "七折", "五折": "五折" } as Record<string, string>,
+      rate: { "原價": "原價", "八折": "八折", "六折": "六折", "四折": "四折" } as Record<string, string>,
       outro: (n: number) => `三套可能讓單套平均成本下降，但會多花 NT$${n.toLocaleString("zh-TW")}。預算上限不是最低消費；花得比預期少是好結果。要不要買三套，由妳決定。`,
       daily: (n: number) => `妳提到這是日常換穿的需要：活動期間三套平均每套 NT$${n.toLocaleString("zh-TW")}，可作為日常換穿方案考慮。實付以購物車結帳為準；數量維持妳確認的，不會自動加購。`,
     },
   },
 };
+
+/** Presentation must follow the same campaign window as the price engine. */
+export function pricePanelCopy(lang: Lang, live: boolean) {
+  const p = UI[lang].price;
+  if (live) return p;
+  return lang === "en" ? {
+    ...p,
+    intro: "No offer is running right now. These totals use list prices; stock, shipping and the final payment are confirmed in the site cart.",
+    oneActivity: "One set, current total",
+    oneActivityNote: (_rate: string) => "One set / list price / no promotion",
+    avg: (n: number) => `${nt(n)} per set on average (list price)`,
+    caption: "List-price totals for one set, three bras, and three sets",
+    activity: "Current total",
+    outro: (n: number) => `Three sets cost ${nt(n)} more than one set. The budget is a ceiling, not a target; you decide the quantity.`,
+    daily: (n: number) => `For your everyday rotation, three sets average ${nt(n)} each at list price. The quantity stays as you confirmed; nothing is added for you.`,
+  } : {
+    ...p,
+    intro: "目前沒有進行中的優惠活動，以下以原價計算；庫存、運費與最後實付以官網購物車為準。",
+    oneActivity: "一套目前合計",
+    oneActivityNote: (_rate: string) => "一套／原價／未套用優惠",
+    avg: (n: number) => `平均每套 NT$${n.toLocaleString("zh-TW")}（原價）`,
+    caption: "一套、三件內衣、三套的原價合計",
+    activity: "目前合計",
+    outro: (n: number) => `三套比一套多花 NT$${n.toLocaleString("zh-TW")}。預算上限不是最低消費，數量由妳決定。`,
+    daily: (n: number) => `依妳提到的日常換穿需要，三套以原價計算平均每套 NT$${n.toLocaleString("zh-TW")}。數量維持妳確認的，不會自動加購。`,
+  };
+}

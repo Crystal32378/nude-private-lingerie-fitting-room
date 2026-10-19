@@ -1,4 +1,61 @@
-# NUDE Virtual Showroom
+# Fit Receipt — by NUDE
+
+**A lingerie fitting room that shows its reasoning. You decide.**
+
+- **Live:** https://nude-virtual-showroom.vercel.app/fitting-room
+- **Demo video (99 s):** https://www.youtube.com/watch?v=enxowadlNGc
+
+A fitting room usually starts with a catalog. Fit Receipt starts with the person.
+It follows the order of NUDE's physical store: you see the piece, we learn how you'll
+wear it, you try it on, and only then do we talk about the whole cost.
+
+> The agent understands the person.
+> JEV strengthens the judgment.
+> Code protects the facts.
+> The person owns the decision.
+
+## How it works
+
+| Layer | Does | Never does |
+|---|---|---|
+| **Agent** | Turns everyday context into a few closed questions. Asks one follow-up only when the answer would change the result. | Silently decide what the person meant. Every answer is confirmed by her. |
+| **Code** | Checks product facts and hard constraints (closure, colourway, budget) before any model is asked. Calculates prices from the official public promotion. | Guess a price, add items, or treat a lower average as a reason to buy more. |
+| **JEV** ([TypeSafe](https://typesafe.ai)) | Weighs construction trade-offs between the styles that passed, as a distribution over fixed choices. | Judge the person's body, fit, comfort, or whether a shade shows through a shirt. |
+| **The person** | Keeps a set as a draft or leaves. | — Nothing is ever ordered from here. |
+
+**Uncertainty stays visible.** Each style card shows JEV's actual distribution. Below a
+0.7 confidence threshold the card reads *"Trade-off still to confirm"* instead of a
+recommendation — the demo's top option sits at 69%, and says so.
+
+**Every judgment leaves a receipt.** Each JEV call returns a receipt ID
+(`jev_…`), the returned model version and a result hash. The same receipt is written
+to the Vercel runtime log, so any recommendation on screen can be traced.
+
+**Her words never leave the browser.** The free-text description is used only
+client-side to suggest which questions to ask. Only closed, schema-checked answers and
+canonical product construction facts reach JEV (`lib/fitting/privacy.ts`); anything
+outside the declared schema throws rather than being sanitised.
+
+**Two signals, no extra questions.** If she mentions sport, the matching priority
+("Moving freely, staying put") is pre-selected for her to confirm. Pieces she opened
+in the showroom lead among equal judgments — product IDs only, kept in the tab.
+
+## Code map
+
+- `lib/fitting/gates.ts` — deterministic hard constraints; run before any model call
+- `lib/fitting/privacy.ts` — the closed outbound schema and payload guard
+- `lib/fitting/jev.ts` — JEV transports (TypeSafe System One; Vercel AI Gateway fallback), thresholds, receipts
+- `lib/fitting/promotion.ts` — official promotion rules and basket totals
+- `lib/fitting/decide.ts` — the agent loop: confirm → ask → judge → recommend
+- `components/views/fitting-room.tsx` — the fitting room UI (English / 中文)
+
+Tests: `npm test` (103 tests) · `npm run typecheck`. `TYPESAFE_API_KEY` enables the
+direct JEV transport; without it the route falls back to the Vercel AI Gateway, and
+without either the page shows only facts that hold without a model.
+
+---
+
+## Previous chapter: NUDE Virtual Showroom
 
 A privacy-first virtual try-on storefront for NUDE intimate apparel, built on
 Perfect Corp's YouCam VTO API (`cloth-v4`). Built for the DevNetwork × Perfect Corp

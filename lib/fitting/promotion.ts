@@ -12,35 +12,37 @@
  * identical; the results do not.
  */
 import { NUDE_PRODUCTS } from "../products.ts";
-import { PANTIES } from "./panties.ts";
+import { PANTIES, pairsWithBra } from "./panties.ts";
 import { runGates } from "./gates.ts";
 import { type SituationFrame } from "./types.ts";
 
 export const PROMO = {
-  /** Verbatim from the official page: 「優惠至 2026/10/16 08:00 截止」(Taipei). Governs. */
-  validityEnd: "2026-10-16T08:00:00+08:00",
-  /** Same instant as shown on the site (2026-09-20 and 2026-09-21). Kept for provenance. */
-  observedSiteEnd: "2026-10-16T08:00:00+08:00",
+  /** 【NUDE 雙11 X 黑五】兩件20%off，四件40%off，六件60%off. Read from the official
+   *  promotion page's own configuration on 2026-10-19: start 2026-10-16 08:00, end
+   *  2026-12-01 00:00 (Taipei), all customers, no membership, not first-purchase-only. */
+  validityStart: "2026-10-16T08:00:00+08:00",
+  /** Exclusive end instant, as configured on the site (end_at). Governs. */
+  validityEnd: "2026-12-01T00:00:00+08:00",
+  observedSiteEnd: "2026-12-01T00:00:00+08:00",
   evidenceLabel: "recorded" as const,
-  evidenceTimestamp: "2026-09-20T00:00:00+08:00",
-  /** Public site terms confirmed: the official promotion page lists the tiers and the
-   *  指定商品, and Crystal (brand owner) confirmed on 2026-09-21 that the campaign is
-   *  live until validityEnd. "Public" is not "checkout": member, card and points
-   *  offers may still stack in the site cart, so the total is the public activity
-   *  price, never a claimed checkout payment. */
+  evidenceTimestamp: "2026-10-19T16:40:00+08:00",
+  /** Crystal (brand owner) pointed to this promotion as the live campaign on 2026-10-19.
+   *  "Public" is not "checkout": member, card and points offers may still stack in the
+   *  site cart, so the total is the public activity price, never a claimed payment. */
   termsVerified: true,
-  sourceUrl: "https://www.nude4underwear.com/promotions/6a28e5b90ac3867ee4dd42e4",
-  /** Corpus items that appear in the official 指定商品 list (read 2026-09-21). */
-  eligibleIds: ["nude-01", "nude-02", "nude-03", "nude-04", "nude-05", "nude-06", "nude-07", "nude-08", "nude-09",
+  sourceUrl: "https://www.nude4underwear.com/promotions/6aca57fe7fde3b29e9a16583",
+  /** Corpus items in the site's 指定商品 whitelist (36 products, read 2026-10-19).
+   *  nude-01 (超完美無痕內衣, 62f4b7ed46a14a00318f29a4) is NOT on it. */
+  eligibleIds: ["nude-02", "nude-03", "nude-04", "nude-05", "nude-06", "nude-07", "nude-08", "nude-09", "nude-10",
     "panty-01", "panty-02", "panty-03", "panty-04", "panty-05", "panty-06", "panty-07", "panty-08"],
   tiers: [
-    { id: "tier_5_50", minItems: 5, rate: 0.5 },
-    { id: "tier_3_70", minItems: 3, rate: 0.7 },
-    { id: "tier_1_90", minItems: 1, rate: 0.9 },
+    { id: "tier_6_40", minItems: 6, rate: 0.4 },
+    { id: "tier_4_60", minItems: 4, rate: 0.6 },
+    { id: "tier_2_80", minItems: 2, rate: 0.8 },
   ],
 } as const;
 
-export type TierId = "none" | "tier_1_90" | "tier_3_70" | "tier_5_50";
+export type TierId = "none" | "tier_2_80" | "tier_4_60" | "tier_6_40";
 
 export interface BasketLine { id: string; name: string; price: number; promotionEligible: "yes" | "no" | "unknown"; qty: number }
 
@@ -73,8 +75,9 @@ export function promotionEligibility(id: string): "yes" | "unknown" {
 }
 
 export function isCampaignLive(now: Date): boolean {
-  // 「08:00 截止」: live strictly before the cut-off instant.
-  return now.getTime() < new Date(PROMO.validityEnd).getTime();
+  // Live from the start instant (inclusive) to the end instant (exclusive).
+  const t = now.getTime();
+  return t >= new Date(PROMO.validityStart).getTime() && t < new Date(PROMO.validityEnd).getTime();
 }
 
 /**
@@ -93,7 +96,7 @@ export function calculate(lines: BasketLine[], now = new Date()): PromotionCalcu
   }
 
   const live = isCampaignLive(now);
-  if (!live) notes.push("活動已結束，不套用任何級距");
+  if (!live) notes.push("不在活動期間，不套用任何級距");
 
   const tier = live ? tierFor(eligibleItemCount) : { id: "none" as TierId, rate: 1 };
   const discountable = countable.reduce((s, l) => s + l.price * l.qty, 0);
@@ -133,12 +136,18 @@ export function tierUpgradeOption(
 ): TierUpgrade | null {
   if (!isCampaignLive(now)) return null;
   const base = calculate(current, now);
-  for (const target of [3, 5]) {
-    const have = current.reduce((s, l) => s + l.qty, 0);
+  for (const target of PROMO.tiers.map(tier => tier.minItems).sort((a, b) => a - b)) {
+    const have = base.eligibleItemCount;
     if (have >= target) continue;
-    const need = target - have;
-    const add = available.slice(0, need);
-    if (add.length < need) continue;
+    let need = target - have;
+    const add: BasketLine[] = [];
+    for (const item of available.filter(line => line.promotionEligible === "yes")) {
+      const qty = Math.min(item.qty, need);
+      if (qty > 0) add.push({ ...item, qty });
+      need -= qty;
+      if (need === 0) break;
+    }
+    if (need > 0) continue;
     const next = calculate([...current, ...add], now);
     return {
       addItems: add, fromItems: have, toItems: target,
@@ -226,7 +235,7 @@ export function buildBudgetComparison(basket: BasketOption, now = new Date()): B
   if (!bra || !panty) return null;
 
   // Same engine as the baskets: eligibility, campaign end and tiers all apply.
-  const RATE_LABEL: Record<TierId, string> = { none: "原價", tier_1_90: "九折", tier_3_70: "七折", tier_5_50: "五折" };
+  const RATE_LABEL: Record<TierId, string> = { none: "原價", tier_2_80: "八折", tier_4_60: "六折", tier_6_40: "四折" };
   const scenario = (id: BudgetScenario["id"], label: string, lines: BasketLine[]) => {
     const c = calculate(lines, now);
     return { id, label, originalTotal: c.preDiscountTotal, conditionalSimulation: c.finalTotal, rateLabel: RATE_LABEL[c.appliedTier] };
@@ -250,6 +259,19 @@ export function buildBudgetComparison(basket: BasketOption, now = new Date()): B
 /** A small, explicit set of same-style baskets. No added units, inferred sizes,
  * member price, or excluded items. Explore the full eligible corpus before cap. */
 export function buildBasketOptions(frame: SituationFrame, now = new Date()): BasketOption[] {
+  return basketsFor(frame, runGates(frame).eligibleBraIds, now);
+}
+
+/** Bras (eligible or still held open by a question) that fit the confirmed
+ * whole-set ceiling. Used only to decide what JEV may compare; never shown as
+ * a purchasable basket, so an open style cannot be kept before she answers. */
+export function affordableBraIds(frame: SituationFrame, braIds: string[], now = new Date()): Set<string> | null {
+  const { quantityIntent: q, matchingSetDesired: m, budgetMaxTwd: b } = frame;
+  if (q.value === null || m.value === null || b.value === null) return null;
+  return new Set(basketsFor(frame, braIds, now).map(o => o.braId));
+}
+
+function basketsFor(frame: SituationFrame, braIds: string[], now: Date): BasketOption[] {
   const { quantityIntent: quantity, matchingSetDesired: matching, budgetMaxTwd: budget } = frame;
   if (quantity.provenance !== "confirmed" || ![1, 2, 3].includes(quantity.value ?? 0)
     || matching.provenance !== "confirmed" || typeof matching.value !== "boolean"
@@ -257,10 +279,10 @@ export function buildBasketOptions(frame: SituationFrame, now = new Date()): Bas
   const qty = quantity.value!;
   const gates = runGates(frame);
   const options: BasketOption[] = [];
-  for (const braId of gates.eligibleBraIds) {
+  for (const braId of braIds) {
     const bra = NUDE_PRODUCTS.find(p => p.id === braId)!;
     const partners = matching.value
-      ? PANTIES.filter(p => p.pairsWith.includes(braId) && gates.eligiblePantyIds.includes(p.id)) : [null];
+      ? PANTIES.filter(p => pairsWithBra(p, braId) && gates.eligiblePantyIds.includes(p.id)) : [null];
     for (const panty of partners) {
       const lines: BasketLine[] = [{ id: bra.id, name: bra.nameZh, price: bra.price, qty, promotionEligible: promotionEligibility(bra.id) }];
       const unknowns: string[] = [];

@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emptyFrame, type SituationFrame } from "../types.ts";
 import { decide, planNextAction, recommendStyles } from "../decide.ts";
-import { buildBasketOptions, buildBudgetComparison } from "../promotion.ts";
-import { buildTaskRequest, parseTaskRequest, projectTradeoffState, assertHobbySafe } from "../privacy.ts";
+import { buildBasketOptions, buildBudgetComparison, PROMO } from "../promotion.ts";
+import { buildTaskRequest, buildTradeoffPayload, parseTaskRequest, projectTradeoffState, assertHobbySafe } from "../privacy.ts";
 import { evaluateTradeoff, type JevTransport } from "../jev.ts";
 import { mentionsDailyRotation } from "../questions.ts";
 
@@ -46,17 +46,23 @@ test("only one eligible style needs no model; answered unknown is not asked fore
   assert.equal(planNextAction(f).kind, "recommend");
 });
 
-test("a hard no-visible-lines requirement remains unknown; no model can certify it", () => {
+test("a hard no-visible-lines requirement remains unknown; JEV compares but cannot certify it", () => {
   const f = frame({ requiresNoVisibleLines: c(true) });
   assert.equal(decide(f).bestFitCount, 0);
-  assert.equal(projectTradeoffState("style_tradeoff", f), null);
+  // Held open, not excluded: construction trade-offs may still be compared...
+  const state = projectTradeoffState("style_tradeoff", f)!;
+  assert.ok(state.products.length >= 2);
+  // ...but the contract forbids judging visibility, and every card stays "needs your answer".
+  assert.match(buildTradeoffPayload(state).questions[`style_${state.products[0].id}`].instructions, /visibility through a shirt/);
+  assert.ok(decide(f).items.filter(i => i.bucket !== "not_a_fit").every(i => i.bucket === "check_with_you"));
 });
 
 test("unresolved confirmed operation restrictions never silently pass", () => {
   for (const field of ["canRaiseArmsOverhead", "canPerformFineMotorPinch"] as const) {
     const f = frame({ [field]: c(false) });
     assert.equal(decide(f).bestFitCount, 0);
-    assert.equal(projectTradeoffState("style_tradeoff", f), null);
+    // Still open, so JEV may compare them; none becomes best fit.
+    assert.ok(projectTradeoffState("style_tradeoff", f));
   }
   assert.equal(decide(frame({ canReachBackClosure: { value: null, provenance: "confirmed" } })).bestFitCount, 0);
 });
@@ -104,24 +110,39 @@ test("style task sends one batch of Choice questions and preserves the actual ch
   assert.ok(result.judgments.every(j => j.choice === "lower_priority" && j.status === "judged"));
 });
 
-test("missing evidence/irrelevant preferences/rules-only tasks do not reach transport", async () => {
+test("rules-only basket tasks do not reach transport; no stated preference still gets a style comparison", async () => {
   const f = frame({ priority: c("not_stated"), basketPriority: c("lowest_total") });
-  for (const task of ["style_tradeoff", "basket_tradeoff"] as const) {
-    let calls = 0;
-    const result = await evaluateTradeoff(buildTaskRequest(task, f), async (...args) => { calls++; return fake(...args); });
-    assert.equal(result.status, "skipped");
-    assert.equal(calls, 0);
-  }
+  let calls = 0;
+  const basket = await evaluateTradeoff(buildTaskRequest("basket_tradeoff", f), async (...args) => { calls++; return fake(...args); });
+  assert.equal(basket.status, "skipped");
+  assert.equal(calls, 0);
+  const style = await evaluateTradeoff(buildTaskRequest("style_tradeoff", f), async (...args) => { calls++; return fake(...args); });
+  assert.equal(style.status, "complete");
+  assert.equal(calls, 1);
+});
+
+test("styles excluded by a hard blocker never reach JEV", () => {
+  const f = frame({ needsNudeColourway: c(true) });
+  const state = projectTradeoffState("style_tradeoff", f)!;
+  const excluded = decide(f).items.filter(i => i.bucket === "not_a_fit").map(i => i.productId);
+  assert.ok(excluded.length > 0);
+  assert.ok(state.products.every(p => !excluded.includes(p.id)));
 });
 
 test("basket prices and quantity come from code, not the request or JEV", async () => {
   const f = frame({ quantityIntent: c(2) });
-  const options = buildBasketOptions(f);
+  const at = new Date("2026-10-25T12:00:00+08:00");
+  const options = buildBasketOptions(f, at);
   assert.ok(options.length > 1);
   for (const b of options) {
     assert.equal(b.lines.filter(l => l.id.startsWith("nude-")).reduce((n, l) => n + l.qty, 0), 2);
     // Public activity price from the deterministic engine, never from the request or JEV.
-    assert.equal(b.calculation.defaultTotal, Math.round(b.lines.reduce((n, l) => n + l.price * l.qty, 0) * 0.9));
+    const pre = b.lines.reduce((n, l) => n + l.price * l.qty, 0);
+    const designated = b.lines.filter(l => (PROMO.eligibleIds as readonly string[]).includes(l.id));
+    const count = designated.reduce((n, l) => n + l.qty, 0);
+    const rate = count >= 6 ? 0.4 : count >= 4 ? 0.6 : count >= 2 ? 0.8 : 1;
+    const disc = designated.reduce((n, l) => n + l.price * l.qty, 0);
+    assert.equal(b.calculation.defaultTotal, pre - disc + Math.round(disc * rate));
     assert.equal(b.calculation.defaultTotal, b.calculation.finalTotal);
     assert.ok(b.budget.withinBudget);
   }
@@ -132,23 +153,24 @@ test("basket prices and quantity come from code, not the request or JEV", async 
 
 test("Tokyo one-set comparison keeps original total separate from conditional simulations", () => {
   const f = frame({ matchingSetDesired: c(true), quantityIntent: c(1) });
-  const basket = buildBasketOptions(f).find(option => option.braId === "nude-09" && option.pantyId === "panty-02");
+  const at = new Date("2026-10-25T12:00:00+08:00");
+  const basket = buildBasketOptions(f, at).find(option => option.braId === "nude-09" && option.pantyId === "panty-02");
   assert.ok(basket, "nude-09 must have its official p-02 partner");
-  const comparison = buildBudgetComparison(basket!);
+  const comparison = buildBudgetComparison(basket!, at);
   assert.deepEqual(comparison && {
     one: [comparison.oneSet.originalTotal, comparison.oneSet.conditionalSimulation, comparison.oneSet.deltaFromOneSet],
     threeBras: [comparison.threeBras.originalTotal, comparison.threeBras.conditionalSimulation, comparison.threeBras.deltaFromOneSet],
     threeSets: [comparison.threeSets.originalTotal, comparison.threeSets.conditionalSimulation, comparison.threeSets.deltaFromOneSet],
     termsVerified: comparison.termsVerified,
   }, {
-    one: [2460, 2214, 0],
-    threeBras: [5640, 3948, 1734],
-    threeSets: [7380, 3690, 1476],
+    one: [2460, 1968, 0],
+    threeBras: [5640, 4512, 2544],
+    threeSets: [7380, 2952, 984],
     termsVerified: true,
   });
   // Average per set comes from the three-set activity price; the basket itself is unchanged.
-  assert.equal(comparison!.threeSetsConditionalAveragePerSet, 1230);
-  assert.equal(basket!.calculation.defaultTotal, 2214);
+  assert.equal(comparison!.threeSetsConditionalAveragePerSet, 984);
+  assert.equal(basket!.calculation.defaultTotal, 1968);
   assert.equal(basket!.calculation.preDiscountTotal, 2460);
   assert.deepEqual(basket!.lines.map(line => line.qty), [1, 1]);
 });

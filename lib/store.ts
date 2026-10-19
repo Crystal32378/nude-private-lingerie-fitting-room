@@ -16,6 +16,7 @@ import {
   savePersonPhoto,
 } from "./storage";
 import { getProductById, resolveGarment } from "./products";
+import { recordViewed } from "./fitting/viewed";
 
 export type View = "showroom" | "product" | "tryon" | "my-looks" | "compare";
 
@@ -115,7 +116,8 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
 
   setView: (view) => set({ view }),
 
-  openProduct: (id) =>
+  openProduct: (id) => {
+    recordViewed(id);
     set({
       view: "product",
       selectedProductId: id,
@@ -123,7 +125,8 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       tryOnImage: null,
       tryOnIsReal: false,
       tryOnError: null,
-    }),
+    });
+  },
 
   backToShowroom: () => set({ view: "showroom" }),
 

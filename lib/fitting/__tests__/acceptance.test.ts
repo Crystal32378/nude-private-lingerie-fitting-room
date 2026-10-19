@@ -11,7 +11,7 @@ import { PANTIES } from "../panties.ts";
 import { emptyFrame, type SituationFrame } from "../types.ts";
 import { decide, decideDegraded } from "../decide.ts";
 import { runGates, highestLeverageQuestion } from "../gates.ts";
-import { calculate, tierUpgradeOption, checkSetBudget, PROMO, type BasketLine } from "../promotion.ts";
+import { calculate, tierUpgradeOption, checkSetBudget, PROMO, promotionEligibility, type BasketLine } from "../promotion.ts";
 import { assertHobbySafe, isHobbySafe, PrivacyViolationError,
          buildOutboundContext, projectProductState } from "../privacy.ts";
 import { evaluateProduct, resolveConfidence, bandForBoolean, evidenceFieldsFor,
@@ -103,14 +103,14 @@ test("AT-2-3 projection rejects unknown source fields and omits known non-eviden
 
 // ───────────────────────────────── AT-3a · planned/unverified promotion
 test("AT-3a public site terms → designated items use the activity price; unknown items stay list price", () => {
-  const at = new Date("2026-09-25T00:00:00+08:00");
+  const at = new Date("2026-10-25T12:00:00+08:00");
   assert.equal(PROMO.termsVerified, true);
   const listed = calculate([
     { id: "nude-09", name: "魔幻時尚前扣", price: 1880, promotionEligible: "yes", qty: 1 },
     { id: "panty-02", name: "魔幻時尚無痕", price: 580, promotionEligible: "yes", qty: 1 },
   ], at);
   assert.equal(listed.isSimulation, false);
-  assert.equal(listed.defaultTotal, 2214, "public activity price (一件9折)");
+  assert.equal(listed.defaultTotal, 1968, "public activity price (兩件8折)");
   assert.ok(listed.notes.some(n => n.includes("實付以購物車為準")), "never claimed as the checkout payment");
   const unlisted = calculate([
     { id: "x-1", name: "未列指定", price: 1880, promotionEligible: "unknown", qty: 1 },
@@ -272,9 +272,12 @@ test("AT-11 upgrade is offered unselected with the real spend change", () => {
     { id: "nude-09", name: "a", price: 1880, promotionEligible: "yes", qty: 1 },
     { id: "panty-02", name: "b", price: 580, promotionEligible: "yes", qty: 1 },
   ];
-  const avail: BasketLine[] = [{ id: "panty-01", name: "c", price: 580, promotionEligible: "yes", qty: 1 }];
-  const up = tierUpgradeOption(cur, avail, new Date("2026-09-25T00:00:00+08:00"));
-  assert.ok(up, "an upgrade to 3 items exists");
+  const avail: BasketLine[] = [
+    { id: "panty-01", name: "c", price: 580, promotionEligible: "yes", qty: 1 },
+    { id: "panty-03", name: "d", price: 580, promotionEligible: "yes", qty: 1 },
+  ];
+  const up = tierUpgradeOption(cur, avail, new Date("2026-10-25T12:00:00+08:00"));
+  assert.ok(up, "an upgrade to 4 items (40% off) exists");
   assert.equal(up!.preSelected, false, "never pre-selected");
   assert.equal(typeof up!.absoluteDelta, "number", "absolute spend change must be reported");
   assert.ok(up!.addItems.length > 0);
@@ -311,18 +314,39 @@ test("AT-13 after the campaign ends no tier is applied", () => {
     { id: "b", name: "b", price: 580, promotionEligible: "yes", qty: 1 },
     { id: "c", name: "c", price: 580, promotionEligible: "yes", qty: 1 },
   ];
-  const after = calculate(lines, new Date("2026-10-16T09:00:00+08:00"));
+  const after = calculate(lines, new Date("2026-12-01T00:00:00+08:00"));
   assert.equal(after.appliedTier, "none");
   assert.equal(after.finalTotal, after.preDiscountTotal);
-  assert.ok(after.notes.some(n => n.includes("活動已結束")));
+  assert.ok(after.notes.some(n => n.includes("不在活動期間")));
+  const before = calculate(lines, new Date("2026-10-16T07:59:59+08:00"));
+  assert.equal(before.appliedTier, "none", "no tier before the campaign starts");
 });
 
-test("AT-13-2 the end matches the site verbatim: 2026/10/16 08:00 截止 (Taipei)", () => {
-  assert.equal(PROMO.validityEnd, "2026-10-16T08:00:00+08:00");
+test("AT-13-3 超完美無痕內衣 (nude-01) is not a designated item in the current campaign", () => {
+  assert.equal(promotionEligibility("nude-01"), "unknown");
+  assert.equal(promotionEligibility("nude-09"), "yes");
+  assert.equal(promotionEligibility("panty-02"), "yes");
+});
+
+test("AT-13-2 the window matches the site settings: 2026/10/16 08:00 to 2026/12/01 00:00 (Taipei)", () => {
+  assert.equal(PROMO.validityStart, "2026-10-16T08:00:00+08:00");
+  assert.equal(PROMO.validityEnd, "2026-12-01T00:00:00+08:00");
   assert.equal(PROMO.validityEnd, PROMO.observedSiteEnd);
   const line: BasketLine[] = [{ id: "a", name: "a", price: 1880, promotionEligible: "yes", qty: 3 }];
-  assert.equal(calculate(line, new Date("2026-10-16T07:59:59+08:00")).appliedTier, "tier_3_70");
-  assert.equal(calculate(line, new Date("2026-10-16T08:00:00+08:00")).appliedTier, "none", "08:00 is the cut-off");
+  assert.equal(calculate(line, new Date("2026-10-16T08:00:00+08:00")).appliedTier, "tier_2_80", "starts at 08:00");
+  assert.equal(calculate(line, new Date("2026-11-30T23:59:59+08:00")).appliedTier, "tier_2_80");
+  assert.equal(calculate(line, new Date("2026-12-01T00:00:00+08:00")).appliedTier, "none", "12/01 00:00 is the cut-off");
+});
+
+test("AT-13-4 tiers: 2 items 20% off, 4 items 40% off, 6 items 60% off", () => {
+  const at = new Date("2026-10-25T12:00:00+08:00");
+  const n = (qty: number) => calculate([{ id: "a", name: "a", price: 1000, promotionEligible: "yes", qty }], at);
+  assert.equal(n(1).finalTotal, 1000);
+  assert.equal(n(2).finalTotal, 1600);
+  assert.equal(n(3).finalTotal, 2400);
+  assert.equal(n(4).finalTotal, 2400);
+  assert.equal(n(6).finalTotal, 2400);
+  assert.equal(n(7).finalTotal, 2800);
 });
 
 // ───────────────────────────────── AT-14 · the reason for asking is the reason for acting

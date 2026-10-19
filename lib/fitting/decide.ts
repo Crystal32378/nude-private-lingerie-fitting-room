@@ -9,13 +9,15 @@ import { runGates, highestLeverageQuestion, type GateRun } from "./gates.ts";
 import { byField } from "./questions.ts";
 import type { DecisionResult, ResultItem, SituationFrame, TradeoffTask, TradeoffResult } from "./types.ts";
 import { projectTradeoffState, type TaskField } from "./privacy.ts";
-import { buildBasketOptions } from "./promotion.ts";
+import { affordableBraIds, buildBasketOptions } from "./promotion.ts";
 
 export const MAX_BEST_FIT = 3;
 
 /** Fields we may quote. A comfort claim with no field behind it is not allowed. */
 function factReasons(p: Product): { text: string; field: string }[] {
-  const out = [{ text: p.closure.startsWith("front") ? "前扣，不需背手" : `背扣（${p.closure}）`, field: "closure" }];
+  const closure = p.closure.startsWith("front") ? "前扣，不需背手"
+    : p.closure.startsWith("none") ? "無背扣，直接套上" : `背扣（${p.closure}）`;
+  const out = [{ text: closure, field: "closure" }];
   out.push({ text: p.wire === "wireless" ? "無鋼圈" : "軟鋼圈", field: "wire" });
   if (/裸|膚/.test(p.colors.join(""))) out.push({ text: `有裸色（${p.colors.join("、")}）`, field: "colors" });
   out.push({ text: `NT$${p.price}`, field: "price" });
@@ -86,7 +88,7 @@ function explain(run: GateRun, frame: SituationFrame): string[] {
     if (q) out.push(`回答「${q.ask}」會改變最多選項`);
   }
   if (run.eligibleBraIds.length === 0) {
-    out.push("目前這九件裡沒有同時符合妳所有條件的。這不是錯誤，是這批商品的真實狀況。");
+    out.push(`目前這 ${total} 件裡沒有同時符合妳所有條件的。這不是錯誤，是這批商品的真實狀況。`);
   }
   return out;
 }
@@ -114,11 +116,13 @@ const CORE_FIELDS: TaskField[] = ["canReachBackClosure", "needsNudeColourway", "
 export function planNextAction(frame: SituationFrame, attempted = new Set<string>(), priorStyle?: TradeoffResult): AgentAction {
   const missing = CORE_FIELDS.filter(key => frame[key].provenance !== "confirmed");
   if (missing.length) return { kind: "confirm", fields: missing };
-  const potential = runGates(frame).bras.filter(g => g.passed);
-  const minimumBraCost = Math.min(...potential.map(g => getProductById(g.productId)!.price)) * (frame.quantityIntent.value ?? 1);
-  // Even before adding a panty, no possible answer to an operation question can
-  // put this confirmed quantity inside the budget. Do not ask a useless question.
-  if (frame.budgetMaxTwd.value !== null && minimumBraCost > frame.budgetMaxTwd.value) return { kind: "recommend" };
+  // Include styles an operation answer could restore, but never hard blockers.
+  const potential = runGates(frame).bras.filter(g => g.passed
+    || (g.reversibleBy && g.blockers.every(b => b.field === "closure"))).map(g => g.productId);
+  // Use the whole-set promotion engine, including matching briefs, rather than
+  // ruling out affordable discounted quantities by their pre-discount price.
+  const affordable = affordableBraIds(frame, potential);
+  if (affordable && affordable.size === 0) return { kind: "recommend" };
   const followup = highestLeverageQuestion(frame);
   if (followup && frame[followup].provenance !== "confirmed") return { kind: "ask", field: followup as TaskField };
   const style = projectTradeoffState("style_tradeoff", frame);
@@ -146,7 +150,9 @@ export function planNextAction(frame: SituationFrame, attempted = new Set<string
 
 /** Choice semantics stay intact. "Lower priority" never removes a fit-compatible
  * product; absent evidence never creates a confident model recommendation. */
-export function recommendStyles(frame: SituationFrame, result?: TradeoffResult): ResultItem[] {
+/** `viewed`: pieces she opened in the showroom. Among equal judgments they come
+ * before price order, the way a piece she picked up leads the conversation. */
+export function recommendStyles(frame: SituationFrame, result?: TradeoffResult, viewed: readonly string[] = []): ResultItem[] {
   const items = decide(frame).items;
   const rank: Record<string, number> = { prefer: 0, consider: 1, lower_priority: 3 };
   const choices = new Map(result?.task === "style_tradeoff" && result.status === "complete"
@@ -159,7 +165,8 @@ export function recommendStyles(frame: SituationFrame, result?: TradeoffResult):
     const ja = choices.get(a.productId), jb = choices.get(b.productId);
     const ar = ja?.status === "judged" ? rank[ja.choice] ?? 2 : 2;
     const br = jb?.status === "judged" ? rank[jb.choice] ?? 2 : 2;
-    return ar - br || getProductById(a.productId)!.price - getProductById(b.productId)!.price
+    const va = viewed.includes(a.productId) ? 0 : 1, vb = viewed.includes(b.productId) ? 0 : 1;
+    return ar - br || va - vb || getProductById(a.productId)!.price - getProductById(b.productId)!.price
       || a.productId.localeCompare(b.productId);
   }).slice(0, MAX_BEST_FIT);
 }

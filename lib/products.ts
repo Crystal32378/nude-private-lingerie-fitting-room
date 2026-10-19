@@ -291,6 +291,34 @@ export const NUDE_PRODUCTS: Product[] = [
     youcamCategory: "upper_body",
     vtoAssets: [{ colour: "裸膚", image: "/garments/nude-09-nude.jpg" }],
   },
+  {
+    id: "nude-10",
+    nameZh: "NUDE 超感動舒服蕾",
+    // Draft English name, pending brand sign-off (same status as the panty names).
+    nameEn: "BASE Jumper Leisure Bra",
+    productUrl: "https://www.nude4underwear.com/products/nude-base-jumper-leisuree",
+    category: "bra (wireless / pull-on / leisure-active)",
+    price: 1980,
+    priceLabel: "NT$1,980",
+    displayImage:
+      "https://img.shoplineapp.com/media/image_clips/601a6a992dca570014d287ef/original.jpg?1612343961",
+    vtoImage:
+      "https://img.shoplineapp.com/media/image_clips/601a6a992dca570014d287ef/original.jpg?1612343961",
+    colors: ["黑"],
+    // Letter sizing, not band+cup: the brand's first XS–L piece.
+    sizes: ["XS", "S", "M", "L"],
+    material: "88% 尼龍、12% 彈性纖維",
+    description:
+      "舒服自在好敢動。無鋼圈、無背扣可直接套上，脊心到罩杯下緣的強效彈力網穩定支撐；正面V字、背面Y字透視網紗，運動也能夠很性感。",
+    wire: "wireless",
+    cup: "三段立體剪裁軟杯 / 全罩杯 / 中罩杯",
+    padding: "none",
+    straps: "non-detachable / dual-strap / Y-back",
+    closure: "none (pull-on)",
+    structureNotes:
+      "Wireless full-cup pull-on bra with no closure; support comes from a power-mesh band from centre gore to under-cup. Y-back sheer mesh. Site lists it as the brand's first XS/S/M/L piece. Stock was very low on 2026-09-21 (site showed 3 left); the site cart decides availability.",
+    youcamCategory: "upper_body",
+  },
 ];
 
 export const PRODUCT_COUNT = NUDE_PRODUCTS.length;

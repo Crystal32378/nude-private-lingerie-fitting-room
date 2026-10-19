@@ -132,6 +132,21 @@ export const PANTIES: PantyRecord[] = [
 
 export const getPanty = (id: string) => PANTIES.find((p) => p.id === id);
 
+/**
+ * Pairings Crystal stated as brand owner on 2026-09-21, kept apart from the
+ * site's own 建議搭配 (`pairsWith`) so the two sources never blur.
+ * nude-10 is black only and has no site-named partner: any panty that comes in
+ * black goes with it.
+ */
+export const BRAND_STATED_PAIRINGS: Record<string, (p: PantyRecord) => boolean> = {
+  "nude-10": (p) => p.colours.includes("黑色"),
+};
+
+/** A panty pairs with a bra if the site names it, or the brand has stated it. */
+export function pairsWithBra(p: PantyRecord, braId: string): boolean {
+  return p.pairsWith.includes(braId) || (BRAND_STATED_PAIRINGS[braId]?.(p) ?? false);
+}
+
 /** Official size chart, verbatim from the site. The user picks. Never inferred. v3 §14.1 B-2 */
 export const PANTY_SIZE_CHART: Record<PantySize, string> = {
   S: "32-35 吋", M: "36-39 吋", L: "40-42 吋",
