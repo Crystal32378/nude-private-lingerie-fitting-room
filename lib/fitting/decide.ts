@@ -9,7 +9,7 @@ import { runGates, highestLeverageQuestion, type GateRun } from "./gates.ts";
 import { byField } from "./questions.ts";
 import type { DecisionResult, ResultItem, SituationFrame, TradeoffTask, TradeoffResult } from "./types.ts";
 import { projectTradeoffState, type TaskField } from "./privacy.ts";
-import { buildBasketOptions } from "./promotion.ts";
+import { affordableBraIds, buildBasketOptions } from "./promotion.ts";
 
 export const MAX_BEST_FIT = 3;
 
@@ -116,11 +116,13 @@ const CORE_FIELDS: TaskField[] = ["canReachBackClosure", "needsNudeColourway", "
 export function planNextAction(frame: SituationFrame, attempted = new Set<string>(), priorStyle?: TradeoffResult): AgentAction {
   const missing = CORE_FIELDS.filter(key => frame[key].provenance !== "confirmed");
   if (missing.length) return { kind: "confirm", fields: missing };
-  const potential = runGates(frame).bras.filter(g => g.passed);
-  const minimumBraCost = Math.min(...potential.map(g => getProductById(g.productId)!.price)) * (frame.quantityIntent.value ?? 1);
-  // Even before adding a panty, no possible answer to an operation question can
-  // put this confirmed quantity inside the budget. Do not ask a useless question.
-  if (frame.budgetMaxTwd.value !== null && minimumBraCost > frame.budgetMaxTwd.value) return { kind: "recommend" };
+  // Include styles an operation answer could restore, but never hard blockers.
+  const potential = runGates(frame).bras.filter(g => g.passed
+    || (g.reversibleBy && g.blockers.every(b => b.field === "closure"))).map(g => g.productId);
+  // Use the whole-set promotion engine, including matching briefs, rather than
+  // ruling out affordable discounted quantities by their pre-discount price.
+  const affordable = affordableBraIds(frame, potential);
+  if (affordable && affordable.size === 0) return { kind: "recommend" };
   const followup = highestLeverageQuestion(frame);
   if (followup && frame[followup].provenance !== "confirmed") return { kind: "ask", field: followup as TaskField };
   const style = projectTradeoffState("style_tradeoff", frame);

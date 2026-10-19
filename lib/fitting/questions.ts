@@ -161,8 +161,8 @@ export function hintsFromUtterance(text: string): string[] {
  */
 export function mentionsMovement(text: string): boolean {
   const lower = text.toLowerCase();
-  return ["運動", "健身", "瑜伽", "跑步", "爬山", "舞", "活動量", "動來動去",
-    "sport", "gym", "workout", "yoga", "run", "hiking", "dance", "active"].some((w) => lower.includes(w));
+  return ["運動", "健身", "瑜伽", "跑步", "爬山", "舞", "活動量", "動來動去"].some((w) => lower.includes(w))
+    || /\b(sports?|gyms?|workouts?|yoga|runs?|running|hiking|dance|dancing|active)\b/i.test(lower);
 }
 
 /**

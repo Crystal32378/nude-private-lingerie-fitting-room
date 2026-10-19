@@ -1,6 +1,6 @@
 /**
- * Presentation-only strings for the fitting room. English is the default; 中文 is
- * one tap away. Both languages render the SAME frame, products, prices and JEV
+ * Presentation-only strings for the fitting room. 中文 is the default; English is
+ * one tap away or opened with ?lang=en. Both languages render the SAME frame, products, prices and JEV
  * results — nothing here computes, filters or decides. Product names, prices and
  * official promotion terms stay as the brand publishes them.
  */
@@ -152,7 +152,7 @@ export const UI = {
     basketDistNote: "Prototype judgment: compares trade-offs for your confirmed needs, not a guarantee of savings or fit.",
     basketUndecided: " It can't yet tell which combination fits your preferences better.",
     insufficient: "Not enough evidence", candidate: "Candidate combination",
-    basketWaiting: "Some styles are still waiting on your answer above, so we can't total a set yet. Nothing has been ruled out.",
+    basketWaiting: "Some styles are still waiting on your answer above, so we can't total a set yet. Other styles may already have been ruled out by your confirmed conditions.",
     noBasket: "At this quantity, no combination meets both your conditions and the whole-set budget. You can edit your answers; we never reduce the quantity or add styles that don't fit.",
     draftSet: "Set draft, pending brand check", jevSuggests: "JEV suggests comparing this one first",
     ruleAgrees: "Your style preference and the lowest total agree", lowest: "Lowest activity-price total right now", another: "Another combination that fits",
@@ -181,7 +181,7 @@ export const UI = {
       caption: "List price and official activity price for one set, three bras, and three sets",
       plan: "Option", list: "List price", activity: "Official activity price", vsOne: "Compared with one set", base: "Baseline", more: (n: number) => `+${nt(n)}`,
       rows: { one_set: "One set: 1 bra + 1 brief", three_bras: "Three bras", three_sets: "Three sets: 3 bras + 3 briefs" } as Record<string, string>,
-      rate: { "原價": "list price", "九折": "10% off", "七折": "30% off", "五折": "50% off" } as Record<string, string>,
+      rate: { "原價": "list price", "八折": "20% off", "六折": "40% off", "四折": "60% off" } as Record<string, string>,
       outro: (n: number) => `Three sets can lower the average cost per set, but you'd spend ${nt(n)} more. The budget is a ceiling, not a target — spending less than planned is a good outcome. Whether to buy three is up to you.`,
       daily: (n: number) => `You mentioned this is for everyday rotation: during the offer, three sets average ${nt(n)} each, which could work as an everyday plan. The cart decides what you pay; the quantity stays as you confirmed, and we never add items for you.`,
     },
@@ -234,7 +234,7 @@ export const UI = {
     basketDistNote: "Prototype judgment：比較已確認需求的取捨，不是省錢或合適程度的保證。",
     basketUndecided: "目前還無法判定哪組更符合偏好。",
     insufficient: "證據不足", candidate: "候選組合",
-    basketWaiting: "有些款式還在等妳回答上面的問題，所以暫時還不能計算整組金額。目前沒有任何款式被排除。",
+    basketWaiting: "有些款式還在等妳回答上面的問題，所以暫時還不能計算整組金額。其他款式可能已依妳確認的條件排除。",
     noBasket: "目前這個數量，沒有同時通過條件與整組預算的組合。可以修改條件；我們不會自動減少數量或加入不合的款式。",
     draftSet: "配套草稿，待品牌核對", jevSuggests: "JEV 建議優先比較這組",
     ruleAgrees: "款式偏好與最低總額一致", lowest: "目前活動價合計最低", another: "另一個合格組合",
@@ -263,9 +263,36 @@ export const UI = {
       caption: "一套、三件內衣、三套的原價與官網活動價",
       plan: "方案", list: "原價", activity: "官網活動價", vsOne: "與一套相比", base: "基準", more: (n: number) => `多 NT$${n.toLocaleString("zh-TW")}`,
       rows: { one_set: "一套：1 件內衣＋1 件內褲", three_bras: "三件內衣", three_sets: "三套：3 件內衣＋3 件內褲" } as Record<string, string>,
-      rate: { "原價": "原價", "九折": "九折", "七折": "七折", "五折": "五折" } as Record<string, string>,
+      rate: { "原價": "原價", "八折": "八折", "六折": "六折", "四折": "四折" } as Record<string, string>,
       outro: (n: number) => `三套可能讓單套平均成本下降，但會多花 NT$${n.toLocaleString("zh-TW")}。預算上限不是最低消費；花得比預期少是好結果。要不要買三套，由妳決定。`,
       daily: (n: number) => `妳提到這是日常換穿的需要：活動期間三套平均每套 NT$${n.toLocaleString("zh-TW")}，可作為日常換穿方案考慮。實付以購物車結帳為準；數量維持妳確認的，不會自動加購。`,
     },
   },
 };
+
+/** Presentation must follow the same campaign window as the price engine. */
+export function pricePanelCopy(lang: Lang, live: boolean) {
+  const p = UI[lang].price;
+  if (live) return p;
+  return lang === "en" ? {
+    ...p,
+    intro: "No offer is running right now. These totals use list prices; stock, shipping and the final payment are confirmed in the site cart.",
+    oneActivity: "One set, current total",
+    oneActivityNote: (_rate: string) => "One set / list price / no promotion",
+    avg: (n: number) => `${nt(n)} per set on average (list price)`,
+    caption: "List-price totals for one set, three bras, and three sets",
+    activity: "Current total",
+    outro: (n: number) => `Three sets cost ${nt(n)} more than one set. The budget is a ceiling, not a target; you decide the quantity.`,
+    daily: (n: number) => `For your everyday rotation, three sets average ${nt(n)} each at list price. The quantity stays as you confirmed; nothing is added for you.`,
+  } : {
+    ...p,
+    intro: "目前沒有進行中的優惠活動，以下以原價計算；庫存、運費與最後實付以官網購物車為準。",
+    oneActivity: "一套目前合計",
+    oneActivityNote: (_rate: string) => "一套／原價／未套用優惠",
+    avg: (n: number) => `平均每套 NT$${n.toLocaleString("zh-TW")}（原價）`,
+    caption: "一套、三件內衣、三套的原價合計",
+    activity: "目前合計",
+    outro: (n: number) => `三套比一套多花 NT$${n.toLocaleString("zh-TW")}。預算上限不是最低消費，數量由妳決定。`,
+    daily: (n: number) => `依妳提到的日常換穿需要，三套以原價計算平均每套 NT$${n.toLocaleString("zh-TW")}。數量維持妳確認的，不會自動加購。`,
+  };
+}

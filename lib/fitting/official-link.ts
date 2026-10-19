@@ -11,6 +11,10 @@
  * - Built with URL/searchParams.set() so any existing query or #fragment on the
  *   product URL survives.
  * - Only for links that leave JEV for the official site. In-app links stay bare.
+ * - These are fixed fitting-room campaign/source tags, not proof of a completed
+ *   model judgment or a sale. Rules-only, pending and unavailable cards keep the
+ *   same source tags; model outcomes must be measured separately, never inferred
+ *   from utm_campaign. No personal answers or judgment probabilities are added.
  */
 
 /** Official-site Shopline product IDs, read from each product page on 2026-10-19. */

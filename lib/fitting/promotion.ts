@@ -136,12 +136,18 @@ export function tierUpgradeOption(
 ): TierUpgrade | null {
   if (!isCampaignLive(now)) return null;
   const base = calculate(current, now);
-  for (const target of [3, 5]) {
-    const have = current.reduce((s, l) => s + l.qty, 0);
+  for (const target of PROMO.tiers.map(tier => tier.minItems).sort((a, b) => a - b)) {
+    const have = base.eligibleItemCount;
     if (have >= target) continue;
-    const need = target - have;
-    const add = available.slice(0, need);
-    if (add.length < need) continue;
+    let need = target - have;
+    const add: BasketLine[] = [];
+    for (const item of available.filter(line => line.promotionEligible === "yes")) {
+      const qty = Math.min(item.qty, need);
+      if (qty > 0) add.push({ ...item, qty });
+      need -= qty;
+      if (need === 0) break;
+    }
+    if (need > 0) continue;
     const next = calculate([...current, ...add], now);
     return {
       addItems: add, fromItems: have, toItems: target,

@@ -8,7 +8,7 @@ import { getProductById } from "@/lib/products";
 import { emptyFrame, type SituationFrame, type TradeoffResult } from "@/lib/fitting/types";
 import { byField, byId, hintsFromUtterance, mentionsDailyRotation, mentionsMovement } from "@/lib/fitting/questions";
 import { readViewed } from "@/lib/fitting/viewed";
-import { askText, productName, CHOICE_LABEL, choiceText, noteText, reasonText, UI, whyText, type Lang } from "@/lib/fitting/i18n";
+import { askText, productName, CHOICE_LABEL, choiceText, noteText, reasonText, UI, whyText, pricePanelCopy, type Lang } from "@/lib/fitting/i18n";
 import { decide, planNextAction, recommendStyles } from "@/lib/fitting/decide";
 import { buildBasketOptions, buildBudgetComparison, isCampaignLive, type BudgetComparison } from "@/lib/fitting/promotion";
 import { buildTaskRequest, projectTradeoffState, type TaskField } from "@/lib/fitting/privacy";
@@ -327,7 +327,7 @@ export function FittingRoomView() {
 }
 
 function PriceDecisionPanel({ comparison, dailyNeed, lang }: { comparison: BudgetComparison; dailyNeed: boolean; lang: Lang }) {
-  const p = UI[lang].price;
+  const p = pricePanelCopy(lang, isCampaignLive(new Date()));
   const rate = (zh: string) => p.rate[zh] ?? zh;
   const rows = [comparison.oneSet, comparison.threeBras, comparison.threeSets];
   return <section className="mt-8 border-l-2 border-accent bg-card p-5 sm:p-7" aria-labelledby="price-decision-title">
