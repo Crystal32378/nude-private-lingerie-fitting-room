@@ -169,7 +169,7 @@ export const UI = {
     heldTotal: (n: number) => `Official activity-price total ${nt(n)}; stock, shipping and member, card or points offers are confirmed in the site cart.`,
     sizeLabel: "Please confirm your brief size from the official chart", sizeNone: "Not chosen",
     fxNote: (rate: number, date: string) => `US$ amounts are approximate, converted at NT$${rate} = US$1 (Bank of Taiwan spot rate, ${date}). Prices are charged in NT$ at checkout.`,
-    shippingNote: "Ships from Taiwan. Free shipping over NT$3,300 in Asia, NT$5,500 to the US, Canada, Europe and Australia; 7–10 business days. Overseas orders are not eligible for ordinary returns. Returns for defective items and applicable statutory rights remain unaffected.",
+    shippingNote: "Ships from Taiwan. Shipping options, charges and any free-shipping eligibility are shown at checkout. Overseas orders are not eligible for ordinary returns. Returns for defective items and applicable statutory rights remain unaffected.",
     returnsPolicyLabel: "Returns policy",
     footer: "First, we understand what matters to you. Then we compare product evidence and explain the trade-offs. You make the final decision.",
     price: {
