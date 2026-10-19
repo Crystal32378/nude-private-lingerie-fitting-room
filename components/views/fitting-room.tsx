@@ -14,6 +14,7 @@ import { buildBasketOptions, buildBudgetComparison, type BudgetComparison } from
 import { buildTaskRequest, projectTradeoffState, type TaskField } from "@/lib/fitting/privacy";
 import { PANTY_SIZE_CHART } from "@/lib/fitting/panties";
 import { approxUsd, FX } from "@/lib/fitting/fx";
+import { jevProductLink } from "@/lib/fitting/official-link";
 
 const CORE: TaskField[] = ["canReachBackClosure", "needsNudeColourway", "requiresNoVisibleLines", "priority",
   "matchingSetDesired", "quantityIntent", "budgetMaxTwd"];
@@ -247,7 +248,15 @@ export function FittingRoomView() {
                 </ul>
                 {item.openQuestion && <p className="mt-3 text-sm leading-6">{askText(byId(item.openQuestion.id), lang) || item.openQuestion.ask}</p>}
                 {item.uncertain.map(note => <p key={note} className="mt-3 text-sm leading-6">{noteText(note, lang)}</p>)}
-                {<details open className="mt-4 border-t border-border pt-3 text-sm">
+                <a
+                  className="mt-5 flex min-h-11 w-full items-center justify-between gap-3 border border-primary px-4 py-3 text-sm transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                  href={jevProductLink(product.id, product.productUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {t.viewProduct} <span aria-hidden="true">↗</span>
+                </a>
+                {<details className="mt-4 border-t border-border pt-3 text-sm">
                   <summary className="cursor-pointer underline underline-offset-4">{t.distSummary}</summary>
                   {judgment ? <>
                     <p className="my-2 text-xs leading-5 text-muted-foreground">{t.distNote}</p>
@@ -255,7 +264,6 @@ export function FittingRoomView() {
                     {styleResult?.provenance?.receiptId && <p className="mt-2 break-all text-xs text-muted-foreground">{t.receipt(styleResult.provenance.receiptId, styleResult.provenance.returnedModel)}</p>}
                   </> : <p className="my-2 text-xs leading-5 text-muted-foreground">{loading ? t.jevPending : t.jevNone}</p>}
                 </details>}
-                <a className="mt-4 inline-block min-h-11 py-3 text-sm underline underline-offset-4" href={product.productUrl} target="_blank" rel="noreferrer">{t.viewProduct}</a>
               </article>;
             })}
           </div>
