@@ -279,15 +279,27 @@ seven). NUDE's product photography is not covered by the MIT licence.
 - Garment category whitelist; malformed requests rejected before any upstream call
 - All guards fail closed
 
-## Known vulnerabilities (assessed, intentionally not patched)
+## Security maintenance
 
-`npm audit` reports 3 high-severity findings, all inherited transitively via
-`next@15`: `postcss <=8.5.22` (build-time CSS processing) and `sharp <0.35`
-(libvips CVEs, used only to optimize first-party static assets — user photos travel
-as data URLs marked `unoptimized` and never pass through sharp). Both attack vectors
-require attacker-controlled input at build time or through the image optimizer,
-which this app does not expose. The only fix path is the breaking `next@16` major
-upgrade, deliberately deferred post-hackathon.
+The image-processing dependency baseline is pinned to Next.js 15.5.28 with a
+sharp 0.35.5 override. The override is intentional: Next's supported sharp range
+also permits older 0.34.x releases, so upgrading Next alone can retain an affected
+sharp lock entry. Check the version resolved from Next and the native library
+versions when changing the lockfile or runtime.
+
+Product images use Next's optimizer with an HTTPS img.shoplineapp.com allowlist.
+That allowlist is host-wide, not limited to this shop's catalogue. Customer photo
+previews and saved results use unoptimized/data-URL rendering; do not infer that
+the optimizer itself is unreachable. Local next start processes images using the
+installed sharp; Vercel deployments use Vercel's managed image service, which
+must be assessed separately. A local patch does not confirm production rollout.
+
+Other findings are separate from this image update. In particular,
+@vercel/cli-config 0.2.7 embeds zod 4.1.11 through @vercel/oidc; a top-level zod
+override does not replace that embedded copy. Gateway fallback remains supported.
+The current accepted-risk decision depends on no visitor-controlled data reaching
+its host-configuration parser; recheck before release and on provider or config
+input changes. Build-time dependencies also remain subject to their own review.
 
 ## Scripts
 

@@ -1,0 +1,76 @@
+name: Security dependency acceptance
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-dependencies-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux dependency acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Exclude local environment files from isolated acceptance
+        run: |
+          rm -f .env .env.local .env.production .env.production.local .env.test .env.test.local
+      - name: Install locked dependencies without project lifecycle scripts
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Typecheck
+        run: |
+          npm run typecheck
+      - name: Check patched resolution and benign native image decoding
+        run: |
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const { createRequire } = require('node:module');
+          const fromRoot = createRequire(process.cwd() + '/package.json');
+          const fromNext = createRequire(fromRoot.resolve('next/package.json'));
+          const next = fromRoot('next/package.json').version;
+          const sharp = fromNext('sharp');
+          const atLeast = (v, minimum) => {
+            const a = v.split('.').map(Number), b = minimum.split('.').map(Number);
+            for (let i = 0; i < 3; i++) { if (a[i] !== b[i]) return a[i] > b[i]; }
+            return true;
+          };
+          const major = Number(next.split('.')[0]);
+          assert((major === 15 && atLeast(next, '15.5.28')) || (major === 16 && atLeast(next, '16.4.1')), 'Next must be in a reviewed patched release line');
+          assert(atLeast(sharp.versions.sharp, '0.35.5'), 'Next must resolve patched sharp');
+          assert.equal(process.platform, 'linux');
+          const glibc = process.report.getReport().header.glibcVersionRuntime;
+          assert(glibc, 'Acceptance must run on glibc Linux');
+          (async () => {
+            const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="2" height="2"><rect width="2" height="2" fill="red"/></svg>');
+            const result = await sharp(svg).resize(4, 4).png().toBuffer({ resolveWithObject: true });
+            assert.equal(result.info.width, 4); assert.equal(result.info.height, 4);
+            assert.equal(result.info.format, 'png');
+            await assert.rejects(sharp(Buffer.from('not an image')).metadata());
+            console.log(JSON.stringify({ sourceSha: process.env.SOURCE_SHA, node: process.version, glibc, next, sharp: sharp.versions.sharp, vips: sharp.versions.vips, rsvg: sharp.versions.rsvg, benignSvgToPng: true, invalidImageRejected: true, exploitAttempt: false }, null, 2));
+          })().catch(error => { console.error(error); process.exitCode = 1; });
+          NODE
+      - name: Run fitting-room fixture tests
+        run: |
+          npm test
+      - name: Build without production promotion
+        run: |
+          npm run build
+
